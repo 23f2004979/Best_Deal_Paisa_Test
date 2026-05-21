@@ -1,0 +1,76 @@
+=========================================================
+      Employee Management Portal (EMP) - Setup Guide
+=========================================================
+
+This package contains the complete source code and initial SQLite database 
+for the Hierarchical Employee Portal, Attendance System, and Ticketing System.
+
+---------------------------------------------------------
+1. Requirements
+---------------------------------------------------------
+Before running the application, make sure you have the following installed:
+* Node.js (Version 18.0.0 or higher recommended)
+* npm (Node Package Manager - comes with Node.js)
+
+---------------------------------------------------------
+2. Setup Instructions
+---------------------------------------------------------
+Step 1: Extract the Zip Package
+   Extract this zip archive into a folder on your target PC.
+
+Step 2: Create Environment Configuration
+   Create a file named ".env" (without quotes) in the main project root folder
+   and paste the following lines into it:
+
+DATABASE_URL=file:./dev.db
+JWT_SECRET=bestdealpaisa_super_secret_jwt_key_2026_emp_portal
+PORT=3000
+NODE_ENV=development
+VITE_API_URL=http://localhost:3000/api
+
+Step 3: Install Dependencies
+   Open a terminal (Command Prompt, PowerShell, or Bash) in the project root
+   folder and run:
+   
+   npm run install-all
+
+   (This installs all package dependencies for the root, server, and client.)
+
+Step 4: Run the Application
+   In the root terminal, run:
+   
+   npm run dev
+
+   This starts both the Express server (port 3000) and the Vite client (port 5173).
+
+Step 5: Access the portal
+   Open your browser and navigate to: http://localhost:5173
+
+---------------------------------------------------------
+3. Pre-configured Logins (Seeded)
+---------------------------------------------------------
+Use the following credentials to log in and test hierarchical features:
+
+* MASTER ADMIN (Can view all, configure salaries, manage employees, mark Manager attendance, and resolve Manager issues):
+  - Email: admin@bestdealpaisa.com
+  - Password: Admin@123
+
+* MANAGER (Marks Team Lead attendance, reviews and escalates Team Lead issues):
+  - Email: manager@bestdealpaisa.com
+  - Password: Manager@123
+
+* TEAM LEAD (Marks Telecaller attendance, reviews and escalates Telecaller issues):
+  - Email: teamlead@bestdealpaisa.com
+  - Password: TeamLead@123
+
+* TELE CALLER (Submits files, views own calendar, raises issues):
+  - Email: telecaller@bestdealpaisa.com
+  - Password: TeleCaller@123
+
+---------------------------------------------------------
+4. Troubleshooting
+---------------------------------------------------------
+* Error "query_engine-windows.dll.node EPERM: operation not permitted":
+  - Stop the node processes (Ctrl+C in terminal) and run "npx prisma generate" again.
+* Port 3000/5173 already in use:
+  - You can change the port in .env (PORT=your_port) or close the conflicting app.

@@ -1,0 +1,502 @@
+================================================================================
+           BestDealPaisa Employee Management Portal (EMP)
+                    Complete Setup & Run Instructions
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+This is a full-stack web application for hierarchical employee management with
+features for attendance tracking, issue management, file approvals, loan
+management, and salary administration.
+
+Technology Stack:
+  - Frontend: Vue.js 3 + Vite + Bootstrap
+  - Backend: Express.js + Node.js
+  - Database: SQLite with Prisma ORM
+  - Authentication: JWT (JSON Web Tokens)
+
+Application Architecture:
+  - 4 User Roles: Admin, Manager, Team Lead, TeleCaller
+  - RESTful API Backend (port 3000)
+  - Single Page Application Frontend (port 5173)
+  - Pre-seeded database with test users and sample data
+
+
+SYSTEM REQUIREMENTS
+================================================================================
+Before starting, ensure your system has:
+
+  • Node.js: Version 18.0.0 or higher
+    Download from: https://nodejs.org/
+    Verify installation: node --version
+
+  • npm: Version 8.0.0 or higher (comes with Node.js)
+    Verify installation: npm --version
+
+  • Operating System: Windows, macOS, or Linux
+  
+  • Disk Space: Minimum 500 MB free space
+  
+  • Ports Available: 3000 (backend) and 5173 (frontend)
+    Make sure these ports are not in use by other applications
+
+
+STEP-BY-STEP SETUP INSTRUCTIONS
+================================================================================
+
+STEP 1: Extract the Project
+--------
+  1. Extract the BestDealPaisa_With_Setup folder to your desired location
+  2. Navigate to the extracted folder in your terminal/command prompt
+  3. You should see the following directories:
+     - client/          (Frontend application)
+     - server/          (Backend application)
+     - prisma/          (Database configuration)
+     - scripts/         (Helper scripts)
+
+
+STEP 2: Create Environment Configuration File
+--------
+  1. In the root directory of the project (same level as package.json), 
+     create a new file named: .env
+
+  2. Add the following configuration to the .env file:
+
+     DATABASE_URL=file:./dev.db
+     JWT_SECRET=bestdealpaisa_super_secret_jwt_key_2026_emp_portal
+     PORT=3000
+     NODE_ENV=development
+     VITE_API_URL=http://localhost:3000/api
+
+  3. Save the file
+
+  Notes:
+  - DATABASE_URL: Path to SQLite database file
+  - JWT_SECRET: Secret key for token encryption (change in production)
+  - PORT: Backend server port
+  - NODE_ENV: Application environment (development/production)
+  - VITE_API_URL: Frontend API endpoint URL
+
+
+STEP 3: Install Dependencies
+--------
+  1. Open a terminal/command prompt in the project root directory
+
+  2. Run the installation command:
+     npm run install-all
+
+  3. Wait for the installation to complete. This will install:
+     - Root dependencies (Prisma)
+     - Server dependencies (Express, bcrypt, jsonwebtoken, etc.)
+     - Client dependencies (Vue, Vite, Bootstrap, etc.)
+
+  Alternative Manual Installation (if npm run install-all doesn't work):
+     npm install
+     cd server && npm install
+     cd ../client && npm install
+     cd ..
+
+
+STEP 4: Setup Database
+--------
+  1. In the root terminal, run:
+     npx prisma migrate deploy
+
+  2. Then seed the database with test data:
+     npm run db:seed
+
+  This will:
+  - Create the SQLite database (dev.db)
+  - Create all necessary tables
+  - Seed the database with test users and sample data
+
+
+STEP 5: Start the Application
+--------
+  From the root directory, run:
+
+     npm run dev
+
+  This command will start:
+  - Backend server on http://localhost:3000
+  - Frontend development server on http://localhost:5173
+
+  You should see output like:
+     ✅ Server running on port 3000
+     VITE v... ready in XXX ms
+     ➜ Local: http://localhost:5173/
+
+
+STEP 6: Access the Application
+--------
+  1. Open your web browser (Chrome, Firefox, Safari, Edge, etc.)
+  2. Navigate to: http://localhost:5173
+  3. You should see the login page
+
+
+RUNNING THE APPLICATION IN SEPARATE TERMINALS
+================================================================================
+Alternatively, you can run the backend and frontend in separate terminals
+for better logging and easier troubleshooting:
+
+Terminal 1 - Backend Server:
+  cd server
+  npx nodemon src/server.js
+  (Auto-restarts when files change)
+
+Terminal 2 - Frontend Development:
+  cd client
+  npm run dev
+
+
+TESTING WITH SEEDED USER ACCOUNTS
+================================================================================
+The database comes pre-loaded with test user accounts. Use these credentials
+to test different user roles and their features:
+
+
+MASTER ADMIN
+  Email: admin@bestdealpaisa.com
+  Password: Admin@123
+  Permissions:
+    - View all employee data
+    - Manage employee information
+    - Configure salary structures
+    - Mark manager attendance
+    - Resolve manager issues
+    - Access all system modules
+
+
+MANAGER
+  Email: manager@bestdealpaisa.com
+  Password: Manager@123
+  Permissions:
+    - Mark team lead attendance
+    - Review and escalate team lead issues
+    - View team lead reports
+    - Manage files from team leads
+
+
+TEAM LEAD
+  Email: teamlead@bestdealpaisa.com
+  Password: TeamLead@123
+  Permissions:
+    - Mark telecaller attendance
+    - Review and escalate telecaller issues
+    - Review and approve telecaller files
+    - View team performance reports
+
+
+TELE CALLER
+  Email: telecaller@bestdealpaisa.com
+  Password: TeleCaller@123
+  Permissions:
+    - Submit files for approval
+    - View attendance calendar
+    - Raise issues/tickets
+    - View personal salary and loan information
+
+
+PROJECT STRUCTURE
+================================================================================
+
+/root
+  ├── .env                      [Configuration file - you create this]
+  ├── dev.db                    [SQLite database file - auto-generated]
+  ├── package.json              [Root dependencies]
+  ├── setup.txt                 [Original setup guide]
+  │
+  ├── /client                   [Vue.js Frontend Application]
+  │   ├── package.json
+  │   ├── vite.config.js
+  │   └── /src
+  │       ├── main.js           [Entry point]
+  │       ├── App.vue           [Root component]
+  │       ├── /api              [API integration]
+  │       ├── /assets           [CSS & images]
+  │       ├── /components       [Reusable components]
+  │       ├── /layouts          [Layout templates]
+  │       ├── /router           [Route configuration]
+  │       ├── /stores           [Pinia stores]
+  │       └── /views            [Page components by role]
+  │
+  ├── /server                   [Express.js Backend]
+  │   ├── package.json
+  │   └── /src
+  │       ├── server.js         [Entry point]
+  │       ├── app.js            [Express app configuration]
+  │       ├── seed.js           [Database seeding]
+  │       ├── /config           [Database configuration]
+  │       ├── /controllers      [Request handlers by feature]
+  │       ├── /helpers          [Utility functions]
+  │       ├── /middleware       [Authentication & authorization]
+  │       └── /routes           [API routes]
+  │
+  └── /prisma                   [Database Configuration]
+      ├── schema.prisma         [Database schema]
+      └── /migrations           [Database migration files]
+
+
+KEY FEATURES & MODULES
+================================================================================
+
+1. AUTHENTICATION
+   - Secure login with JWT tokens
+   - Role-based access control (RBAC)
+   - Auto-logout on token expiration
+
+2. DASHBOARD
+   - Role-specific dashboard views
+   - Key performance metrics
+   - Quick access to features
+
+3. ATTENDANCE MANAGEMENT
+   - Calendar-based attendance tracking
+   - Role-based hierarchy (Admin > Manager > TeamLead > TeleCaller)
+   - Monthly attendance reports
+
+4. FILE/REPORT MANAGEMENT
+   - File creation and submission
+   - Multi-level approval workflow
+   - Approval history tracking
+   - Status-based filtering
+
+5. ISSUE MANAGEMENT
+   - Submit support tickets
+   - Hierarchical escalation
+   - Issue tracking and resolution
+   - Comments and status updates
+
+6. SALARY ADMINISTRATION
+   - Salary structure management
+   - Salary history tracking
+   - Loan management
+   - Monthly salary slips
+
+7. EMPLOYEE MANAGEMENT (Admin Only)
+   - Add/edit employee information
+   - Role assignment
+   - Hierarchical relationship management
+
+
+COMMON COMMANDS
+================================================================================
+
+Development Commands:
+  npm run dev                   Start both frontend and backend
+  npm run dev:server           Start only backend server
+  npm run dev:client           Start only frontend dev server
+
+Database Commands:
+  npm run db:migrate           Run pending database migrations
+  npm run db:seed              Seed database with test data
+  npm run db:studio            Open Prisma Studio (visual database editor)
+
+Build Commands:
+  npm run build                Build frontend for production
+
+Production Commands:
+  npm start                    Start production server
+
+
+API ENDPOINTS
+================================================================================
+All API endpoints are prefixed with /api
+
+Authentication:
+  POST   /auth/login           User login
+  POST   /auth/logout          User logout
+
+Users & Employees (Admin):
+  GET    /admin/users          Get all users
+  POST   /admin/users          Create new user
+  PUT    /admin/users/:id      Update user
+
+Attendance:
+  GET    /attendance           Get attendance records
+  POST   /attendance           Create attendance record
+
+Files/Reports:
+  GET    /files                Get files
+  POST   /files                Submit new file
+  PUT    /files/:id            Update file
+
+Issues:
+  GET    /issues               Get issues
+  POST   /issues               Create new issue
+  PUT    /issues/:id           Update issue
+
+Salary:
+  GET    /salary               Get salary information
+
+Dashboard:
+  GET    /dashboard            Get dashboard data
+
+
+TROUBLESHOOTING
+================================================================================
+
+Problem: Port 3000 or 5173 already in use
+Solution:
+  - Option 1: Close the application using that port
+  - Option 2: Change PORT in .env file to an available port (e.g., 3001)
+  - Option 3: On Windows, use: netstat -ano | findall "3000"
+  - Option 3: On macOS/Linux, use: lsof -i :3000
+
+Problem: "npm: command not found"
+Solution:
+  - Node.js/npm is not installed
+  - Install from https://nodejs.org/
+  - Restart terminal/command prompt after installation
+
+Problem: "Prisma error" or database issues
+Solution:
+  1. Delete dev.db file if it exists
+  2. Run: npx prisma migrate deploy
+  3. Run: npm run db:seed
+
+Problem: Dependencies installation fails
+Solution:
+  1. Delete node_modules folder: rm -rf node_modules (or via file explorer)
+  2. Clear npm cache: npm cache clean --force
+  3. Try installation again: npm install
+
+Problem: "EACCES: permission denied"
+Solution:
+  - Use sudo: sudo npm install (macOS/Linux)
+  - Or fix npm permissions: npm config set prefix ~/.npm-global
+
+Problem: Cannot connect to backend (Frontend shows API errors)
+Solution:
+  1. Check if backend is running on port 3000
+  2. Verify VITE_API_URL in .env matches the backend URL
+  3. Check browser console for error messages
+  4. Restart both frontend and backend
+
+Problem: Login not working
+Solution:
+  1. Verify database is seeded: npm run db:seed
+  2. Use correct credentials from seeded users list
+  3. Check server console for error messages
+  4. Clear browser cookies and try again
+
+Problem: Port already in use
+On Windows:
+  netstat -ano | findstr :3000
+  taskkill /PID <PID> /F
+
+On macOS/Linux:
+  lsof -i :3000
+  kill -9 <PID>
+
+
+PRODUCTION DEPLOYMENT
+================================================================================
+When deploying to production:
+
+1. Update .env variables:
+   - Change NODE_ENV to "production"
+   - Use strong JWT_SECRET
+   - Update database URL if using external database
+   - Update VITE_API_URL to production domain
+
+2. Build frontend:
+   npm run build
+
+3. Start production server:
+   npm start
+
+4. Use process manager (PM2):
+   npm install -g pm2
+   pm2 start server/src/server.js
+
+See render.yaml for deployment configuration details.
+
+
+DEVELOPMENT TIPS
+================================================================================
+
+1. Enable Frontend Hot Module Replacement (HMR)
+   - Changes to Vue files auto-refresh browser
+
+2. Use Browser DevTools
+   - Debug JavaScript with browser console
+   - Inspect network requests
+   - Check application state in Vue DevTools
+
+3. Use Prisma Studio
+   npm run db:studio
+   - Visual database editor
+   - Query data without writing SQL
+
+4. Server-side Debugging
+   - Check console output for error messages
+   - Use nodemon for auto-restart on file changes
+
+5. Database Troubleshooting
+   - Open dev.db with SQLite browser
+   - Check migration_lock.toml for migration status
+
+6. API Testing
+   - Use Postman or Insomnia
+   - Test API endpoints manually
+   - Check request/response formats
+
+
+QUICK START SUMMARY
+================================================================================
+
+For the impatient, here's the absolute minimum:
+
+1. Extract the project folder
+2. Create .env file with configuration (see STEP 2)
+3. npm run install-all
+4. npx prisma migrate deploy
+5. npm run db:seed
+6. npm run dev
+7. Open http://localhost:5173
+8. Login with provided credentials
+
+Done! Your application is running.
+
+
+GETTING HELP
+================================================================================
+
+If something doesn't work:
+
+1. Read the error message carefully
+2. Check Troubleshooting section above
+3. Verify all prerequisites are installed
+4. Check that ports 3000 and 5173 are available
+5. Try deleting node_modules and reinstalling
+6. Check browser console (F12) for frontend errors
+7. Check terminal output for backend errors
+8. Verify .env configuration is correct
+
+
+ADDITIONAL RESOURCES
+================================================================================
+
+Documentation:
+  - Vue.js: https://vuejs.org/
+  - Express.js: https://expressjs.com/
+  - Prisma: https://www.prisma.io/
+  - Vite: https://vitejs.dev/
+  - Bootstrap: https://getbootstrap.com/
+
+Useful Tools:
+  - Node.js: https://nodejs.org/
+  - SQLite Browser: https://sqlitebrowser.org/
+  - Postman: https://www.postman.com/
+  - VS Code: https://code.visualstudio.com/
+
+
+================================================================================
+                            END OF INSTRUCTIONS
+================================================================================
+Document Version: 1.0
+Last Updated: May 2026
+For questions or issues, check the troubleshooting section or review
+the server and client console logs.
+================================================================================

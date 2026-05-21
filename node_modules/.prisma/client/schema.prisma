@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  empId        String     @unique // Unique Employee ID (MGR-1001, TL-1001, TC-1001)
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         String
+  status       String     @default("ACTIVE") // ACTIVE/INACTIVE
+  phone        String?
+  joiningDate  DateTime   @default(now())
+  baseSalary   Float      @default(0) // Monthly salary
+  dailyWage    Float      @default(0) // Daily wage for attendance calculation
+
+  managerId    Int?
+  manager      User?      @relation("ManagerTL", fields: [managerId], references: [id])
+  teamLeads    User[]     @relation("ManagerTL")
+
+  teamLeadId   Int?
+  teamLead     User?      @relation("TLtoTC", fields: [teamLeadId], references: [id])
+  teleCallers  User[]     @relation("TLtoTC")
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  files           File[]
+  attendance      Attendance[]
+  salaries        Salary[]
+  salaryHistory   SalaryHistory[]
+  loansAsTC       LoanDisbursed[]  @relation("TCLoan")
+  loansApproved   LoanDisbursed[]  @relation("LoanApprover")
+  appHistory      AppHistory[]
+  notifications   Notification[]
+  approvalLogs    ApprovalLog[]
+  issuesReported  Issue[]          @relation("ReporterRelation")
+  issuesAssigned  Issue[]          @relation("AssignedSeniorRelation")
+}
+
+model SalaryHistory {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  oldBaseSalary Float
+  newBaseSalary Float
+  oldDailyWage  Float
+  newDailyWage  Float
+  effectiveDate DateTime
+  changedAt     DateTime @default(now())
+}
+
+model File {
+  id              Int        @id @default(autoincrement())
+  reportNumber    String     @unique // e.g., CRF-2026-0001
+  title           String
+  description     String?
+  customerDetails String?    // JSON or Text
+  status          String     @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, CHANGES_REQUESTED
+  createdById     Int
+  createdBy       User       @relation(fields: [createdById], references: [id])
+  
+  approvalLevel   Int        @default(1) // 1: TL, 2: Manager, 3: Admin
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  history         AppHistory[]
+  approvalLogs    ApprovalLog[]
+}
+
+model ApprovalLog {
+  id           Int      @id @default(autoincrement())
+  fileId       Int
+  file         File     @relation(fields: [fileId], references: [id])
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  action       String   // APPROVED, REJECTED, REQUESTED_CHANGES
+  comments     String?
+  createdAt    DateTime @default(now())
+}
+
+model LoanDisbursed {
+  id            Int        @id @default(autoincrement())
+  amount        Float
+  disbursedDate DateTime
+  month         Int
+  year          Int
+  status        String     @default("PENDING")
+  teleCallerId  Int
+  teleCaller    User       @relation("TCLoan", fields: [teleCallerId], references: [id])
+  approvedById  Int?
+  approvedBy    User?      @relation("LoanApprover", fields: [approvedById], references: [id])
+  createdAt     DateTime   @default(now())
+}
+
+model Attendance {
+  id           Int      @id @default(autoincrement())
+  date         DateTime
+  status       String   // PRESENT, ABSENT, LEAVE
+  dailyWage    Float    @default(0) // Captured daily wage for this specific day
+  month        Int
+  year         Int
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model Salary {
+  id             Int      @id @default(autoincrement())
+  month          Int
+  year           Int
+  baseSalary     Float    // Active base salary at the end of the month
+  attendanceDays Float
+  earnedSalary   Float    @default(0) // Sum of daily wages for present days
+  deductions     Float    @default(0)
+  netSalary      Float
+  generatedAt    DateTime @default(now())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, month, year])
+}
+
+model AppHistory {
+  id        Int      @id @default(autoincrement())
+  status    String   @default("APPLIED")
+  updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  fileId    Int
+  file      File     @relation(fields: [fileId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Issue {
+  id               Int      @id @default(autoincrement())
+  title            String
+  category         String
+  description      String
+  status           String   @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED
+  reporterId       Int
+  reporter         User     @relation("ReporterRelation", fields: [reporterId], references: [id])
+  assignedSeniorId Int
+  assignedSenior   User     @relation("AssignedSeniorRelation", fields: [assignedSeniorId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
