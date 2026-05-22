@@ -13,9 +13,9 @@
         <div class="btn-group btn-group-sm">
           <button v-if="row.status !== 'ACTIVE'" class="btn btn-outline-success btn-sm"
                   @click="updateStatus(row.id, 'ACTIVE')">Approve</button>
-          <button v-if="row.status !== 'BLACKLISTED'" class="btn btn-outline-danger btn-sm"
+          <button v-if="row.status !== 'BLACKLISTED' && row.role !== 'ADMIN' && row.role !== 'MASTER_ADMIN'" class="btn btn-outline-danger btn-sm"
                   @click="updateStatus(row.id, 'BLACKLISTED')">Blacklist</button>
-          <button v-if="row.status !== 'DEACTIVATED'" class="btn btn-outline-secondary btn-sm"
+          <button v-if="row.status !== 'DEACTIVATED' && row.role !== 'ADMIN' && row.role !== 'MASTER_ADMIN'" class="btn btn-outline-secondary btn-sm"
                   @click="updateStatus(row.id, 'DEACTIVATED')">Deactivate</button>
         </div>
       </template>

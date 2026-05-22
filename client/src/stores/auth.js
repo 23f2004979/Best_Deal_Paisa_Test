@@ -8,7 +8,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn  = computed(() => !!token.value)
   const role        = computed(() => user.value?.role)
-  const isAdmin     = computed(() => role.value === 'MASTER_ADMIN')
+  const isAdmin     = computed(() => role.value === 'ADMIN' || role.value === 'MASTER_ADMIN')
+  const isMasterAdmin = computed(() => role.value === 'MASTER_ADMIN')
   const isManager   = computed(() => role.value === 'MANAGER')
   const isTeamLead  = computed(() => role.value === 'TEAM_LEAD')
   const isTeleCaller= computed(() => role.value === 'TELE_CALLER')
@@ -28,5 +29,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('emp_user')
   }
 
-  return { user, token, isLoggedIn, role, isAdmin, isManager, isTeamLead, isTeleCaller, login, logout }
+  return { user, token, isLoggedIn, role, isAdmin, isMasterAdmin, isManager, isTeamLead, isTeleCaller, login, logout }
 })

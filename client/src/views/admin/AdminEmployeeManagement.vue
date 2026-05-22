@@ -40,15 +40,18 @@
             </td>
             <td class="fw-semibold">₹{{ user.baseSalary?.toLocaleString('en-IN') }}</td>
             <td>
-              <span class="badge py-1 px-2" :class="user.status === 'ACTIVE' ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger-emphasis'">
+              <span class="badge py-1 px-2" :class="user.status === 'ACTIVE' ? 'bg-success-subtle text-success-emphasis' : (user.status === 'COOL-OFF' ? 'bg-warning-subtle text-warning-emphasis' : 'bg-danger-subtle text-danger-emphasis')">
                 {{ user.status }}
               </span>
             </td>
             <td class="px-3 text-nowrap text-end">
-              <button class="btn btn-xs btn-outline-info me-1 py-0 px-2" style="font-size: 0.75rem;" @click="openSalaryModal(user)">
+              <button v-if="auth.isMasterAdmin || (user.role !== 'ADMIN' && user.role !== 'MASTER_ADMIN')" class="btn btn-xs btn-outline-primary me-1 py-0 px-2" style="font-size: 0.75rem;" @click="openEditModal(user)">
+                <i class="bi bi-pencil"></i> Edit
+              </button>
+              <button v-if="auth.isMasterAdmin || (user.role !== 'ADMIN' && user.role !== 'MASTER_ADMIN')" class="btn btn-xs btn-outline-info me-1 py-0 px-2" style="font-size: 0.75rem;" @click="openSalaryModal(user)">
                 <i class="bi bi-currency-rupee"></i> Salary
               </button>
-              <button class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.75rem;" @click="deleteUser(user)">
+              <button v-if="user.role !== 'ADMIN' && user.role !== 'MASTER_ADMIN'" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.75rem;" @click="deleteUser(user)">
                 <i class="bi bi-trash"></i> Delete
               </button>
             </td>
@@ -138,6 +141,95 @@
       </div>
     </div>
 
+    <!-- Edit Employee Modal -->
+    <div v-if="showEditModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Edit Employee: {{ selectedUser?.name }}</h5>
+            <button type="button" class="btn-close" @click="showEditModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <form @submit.prevent="updateEmployeeProfile">
+              <div class="mb-3">
+                <label>Full Name</label>
+                <input v-model="editForm.name" type="text" class="form-control" required />
+              </div>
+              <div class="mb-3">
+                <label>Email</label>
+                <input v-model="editForm.email" type="email" class="form-control" required />
+              </div>
+              <div class="mb-3">
+                <label>Phone</label>
+                <input v-model="editForm.phone" type="text" class="form-control" />
+              </div>
+              <div class="mb-3">
+                <label>Role</label>
+                <select v-model="editForm.role" class="form-select" required @change="onEditRoleChange">
+                  <option value="MANAGER">Manager</option>
+                  <option value="TEAM_LEAD">Team Lead</option>
+                  <option value="TELE_CALLER">Telecaller</option>
+                  <option v-if="auth.isMasterAdmin" value="ADMIN">Admin</option>
+                </select>
+              </div>
+
+              <!-- Dynamic Senior Assignment -->
+              <div v-if="editForm.role === 'TEAM_LEAD'" class="mb-3">
+                <label>Assign to Manager <span class="text-danger">*</span></label>
+                <select v-model="editForm.managerId" class="form-select" required>
+                  <option value="">-- Select Manager --</option>
+                  <option v-for="mgr in seniors.managers" :key="mgr.id" :value="mgr.id">
+                    {{ mgr.name }} ({{ mgr.empId }})
+                  </option>
+                </select>
+              </div>
+
+              <div v-if="editForm.role === 'TELE_CALLER'" class="mb-3">
+                <label>Assign to Team Lead <span class="text-danger">*</span></label>
+                <select v-model="editForm.teamLeadId" class="form-select" required>
+                  <option value="">-- Select Team Lead --</option>
+                  <option v-for="tl in seniors.teamLeads" :key="tl.id" :value="tl.id">
+                    {{ tl.name }} ({{ tl.empId }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label>Base Salary (Monthly)</label>
+                  <input v-model="editForm.baseSalary" type="number" class="form-control" required />
+                </div>
+                <div class="col-6 mb-3">
+                  <label>Daily Wage</label>
+                  <input v-model="editForm.dailyWage" type="number" class="form-control" required />
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label>Status</label>
+                <select v-model="editForm.status" class="form-select" required>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="COOL-OFF">COOL-OFF</option>
+                  <option value="BLACKLISTED">BLACKLISTED</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label>Reset Password <span class="text-muted">(Leave blank to keep current)</span></label>
+                <input v-model="editForm.password" type="password" class="form-control" placeholder="New Password" />
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100" :disabled="editingUser">
+                <span v-if="editingUser" class="spinner-border spinner-border-sm me-1"></span>
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Salary Config Modal -->
     <div v-if="showSalaryModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);">
       <div class="modal-dialog">
@@ -194,14 +286,18 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../../api/axios';
+import { useAuthStore } from '../../stores/auth';
 
+const auth = useAuthStore();
 const users = ref([]);
 const showModal = ref(false);
+const showEditModal = ref(false);
 const showSalaryModal = ref(false);
 const showDeleteModal = ref(false);
 const selectedUser = ref(null);
 const userToDelete = ref(null);
 const creating = ref(false);
+const editingUser = ref(false);
 
 const seniors = ref({ managers: [], teamLeads: [] });
 
@@ -214,6 +310,20 @@ const form = ref({
   dailyWage: 0,
   managerId: '',
   teamLeadId: ''
+});
+
+const editForm = ref({
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  role: '',
+  status: '',
+  baseSalary: 0,
+  dailyWage: 0,
+  managerId: '',
+  teamLeadId: '',
+  password: ''
 });
 
 const salaryForm = ref({
@@ -230,6 +340,11 @@ function formatRole(role) {
 function onRoleChange() {
   form.value.managerId = '';
   form.value.teamLeadId = '';
+}
+
+function onEditRoleChange() {
+  editForm.value.managerId = '';
+  editForm.value.teamLeadId = '';
 }
 
 const loadSeniors = async () => {
@@ -314,6 +429,66 @@ const updateSalary = async () => {
     loadUsers();
   } catch (err) {
     alert('Error updating salary');
+  }
+};
+
+const openEditModal = async (user) => {
+  await loadSeniors();
+  selectedUser.value = user;
+  editForm.value = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || '',
+    role: user.role,
+    status: user.status,
+    baseSalary: user.baseSalary,
+    dailyWage: user.dailyWage || 0,
+    managerId: user.managerId || '',
+    teamLeadId: user.teamLeadId || '',
+    password: ''
+  };
+  showEditModal.value = true;
+};
+
+const updateEmployeeProfile = async () => {
+  editingUser.value = true;
+  try {
+    const payload = { ...editForm.value };
+    if (!payload.password) delete payload.password;
+    if (!payload.phone) payload.phone = null;
+    
+    if (payload.role === 'TEAM_LEAD') {
+      payload.teamLeadId = null;
+      if (!payload.managerId) {
+        alert('Manager is required for Team Lead role.');
+        editingUser.value = false;
+        return;
+      }
+    } else if (payload.role === 'TELE_CALLER') {
+      payload.managerId = null;
+      if (!payload.teamLeadId) {
+        alert('Team Lead is required for Tele Caller role.');
+        editingUser.value = false;
+        return;
+      }
+    } else {
+      payload.managerId = null;
+      payload.teamLeadId = null;
+    }
+    
+    payload.managerId = payload.managerId ? Number(payload.managerId) : null;
+    payload.teamLeadId = payload.teamLeadId ? Number(payload.teamLeadId) : null;
+    payload.baseSalary = Number(payload.baseSalary) || 0;
+    payload.dailyWage = Number(payload.dailyWage) || 0;
+
+    await api.patch(`/admin/users/${payload.id}`, payload);
+    showEditModal.value = false;
+    loadUsers();
+  } catch (err) {
+    alert('Error updating user: ' + (err.response?.data?.message || err.message));
+  } finally {
+    editingUser.value = false;
   }
 };
 

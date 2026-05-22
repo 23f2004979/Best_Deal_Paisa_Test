@@ -12,7 +12,11 @@ exports.getDashboard = async (req, res) => {
       where: { teamLeadId: { in: tlIds }, role: 'TELE_CALLER', status: 'ACTIVE' }
     });
     const pendingFiles = await prisma.file.count({
-      where: { status: 'PENDING', createdBy: { OR: [{ managerId: req.user.id }, { teamLeadId: { in: tlIds } }] } }
+      where: {
+        status: 'PENDING_APPROVAL',
+        approvalLevel: { lte: 2 },
+        createdBy: { OR: [{ managerId: req.user.id }, { teamLeadId: { in: tlIds } }] }
+      }
     });
     res.json({ teamLeads: teamLeads.length, teleCallers, pendingFiles, teamLeadsList: teamLeads });
   } catch (err) {
@@ -141,7 +145,7 @@ exports.getSubordinatesAttendance = async (req, res) => {
     
     const users = await prisma.user.findMany({
       where: { managerId: req.user.id, role: 'TEAM_LEAD', status: 'ACTIVE' },
-      select: { id: true, name: true, role: true, baseSalary: true, attendance: { where: { month, year } } }
+      select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
     const now = new Date();
@@ -149,13 +153,13 @@ exports.getSubordinatesAttendance = async (req, res) => {
       const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
       const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
       const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round((u.baseSalary / daysInMonth) * presentDays);
+      const projectedSalary = Math.round(u.dailyWage * presentDays);
       const todayRecord = u.attendance.find(a => {
         const d = new Date(a.date);
         return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
       return {
-        id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary,
+        id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary, dailyWage: u.dailyWage,
         presentDays, absentDays, leaveDays, projectedSalary,
         isMarkedToday: !!todayRecord,
         todayStatus: todayRecord ? todayRecord.status : null

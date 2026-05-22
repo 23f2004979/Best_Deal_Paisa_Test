@@ -18,7 +18,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ message: 'Account not active. Contact admin.' });
 
     const token = jwt.sign(
-      { id: user.id, name: user.name, empId: user.empId, email: user.email, role: user.role },
+      { id: user.id, name: user.name, empId: user.empId, email: user.email, role: user.role, passwordHash: user.passwordHash },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '8h' }
     );
@@ -43,10 +43,28 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
+// Helper validation functions
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  // 8+ chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`\-]).{8,}$/.test(password);
+}
+
 // Admin creates a user
 router.post('/register', verifyToken, verifyRole(['ADMIN']), async (req, res) => {
   try {
     const { name, email, password, role, phone, baseSalary, dailyWage, managerId, teamLeadId } = req.body;
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format.' });
+    }
+
+    if (!validatePassword(password)) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.' });
+    }
 
     if (role === 'ADMIN' || role === 'MASTER_ADMIN') {
       return res.status(400).json({ message: 'Creating an Admin user is not allowed.' });

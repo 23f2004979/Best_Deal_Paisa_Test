@@ -1,22 +1,28 @@
 <template>
-  <div class="emp-layout">
-    <!-- Mobile Top Navbar -->
-    <nav class="emp-topbar d-lg-none">
-      <span class="brand">BDP EMP</span>
-      <button class="btn btn-sm btn-outline-light" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#empSidebar">
-        <i class="bi bi-list fs-5"></i>
-      </button>
+  <div class="emp-layout" :class="{ 'sidebar-open': isSidebarOpen }">
+    <!-- Top Navbar -->
+    <nav class="emp-topbar">
+      <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-sm text-light border-0 p-0" type="button" @click="toggleSidebar" aria-label="Toggle Sidebar">
+          <i class="bi bi-list fs-4"></i>
+        </button>
+        <span class="brand" v-if="!isSidebarOpen || isMobile">BDP EMP</span>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-white-50 small d-none d-sm-inline">Welcome, {{ auth.user?.name }}</span>
+      </div>
     </nav>
 
+    <!-- Backdrop for mobile/tablet -->
+    <div v-if="isSidebarOpen" class="sidebar-backdrop d-lg-none" @click="isSidebarOpen = false"></div>
+
     <!-- Sidebar -->
-    <aside class="emp-sidebar offcanvas offcanvas-start d-lg-flex flex-column"
-           id="empSidebar" tabindex="-1">
+    <aside class="emp-sidebar" id="empSidebar" tabindex="-1">
       <div class="sidebar-brand">
         <span class="brand-text">BDP EMP</span>
         <small>Best Deal Paisa</small>
         <button class="btn-close btn-close-white d-lg-none ms-auto"
-                data-bs-dismiss="offcanvas"></button>
+                @click="isSidebarOpen = false"></button>
       </div>
 
       <nav class="sidebar-nav flex-grow-1">
@@ -65,25 +71,38 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter, useRoute } from 'vue-router'
-import { watch } from 'vue'
 import SidebarLink      from '../components/sidebar/SidebarLink.vue'
 
 const auth   = useAuthStore()
 const router = useRouter()
 const route  = useRoute()
 
-// Close mobile offcanvas and clean up backdrops on route change
+const isSidebarOpen = ref(false)
+const isMobile = ref(false)
+
+function toggleSidebar() {
+  isSidebarOpen.value = !isSidebarOpen.value
+}
+
+function updateMobileState() {
+  isMobile.value = window.innerWidth < 992
+}
+
+onMounted(() => {
+  updateMobileState()
+  window.addEventListener('resize', updateMobileState)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateMobileState)
+})
+
+// Close sidebar on route change
 watch(() => route.path, () => {
-  // Dismiss Bootstrap offcanvas programmatically
-  const sidebarEl = document.getElementById('empSidebar')
-  if (sidebarEl && window.bootstrap) {
-    const offcanvas = window.bootstrap.Offcanvas.getInstance(sidebarEl)
-    if (offcanvas) {
-      offcanvas.hide()
-    }
-  }
+  isSidebarOpen.value = false
   
   // Clean up any lingering backdrops (to avoid unclickable dark overlays)
   const backdrops = document.querySelectorAll('.offcanvas-backdrop, .modal-backdrop')

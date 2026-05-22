@@ -6,7 +6,7 @@
       <template #cell-status="{ row }"><StatusBadge :status="row.status" /></template>
       <template #cell-createdBy="{ row }">{{ row.createdBy?.name }}</template>
       <template #actions="{ row }">
-        <div class="btn-group btn-group-sm" v-if="row.status === 'PENDING'">
+        <div class="btn-group btn-group-sm" v-if="row.status === 'PENDING_APPROVAL'">
           <button class="btn btn-outline-success btn-sm" @click="updateStatus(row.id, 'APPROVED')">Approve</button>
           <button class="btn btn-outline-danger btn-sm" @click="updateStatus(row.id, 'REJECTED')">Reject</button>
         </div>
@@ -37,7 +37,10 @@ async function loadFiles() {
 }
 
 async function updateStatus(id, status) {
-  try { await api.patch(`/manager/files/${id}/status`, { status }); await loadFiles() }
+  try {
+    await api.post(`/shared/reports/${id}/approve`, { action: status, comments: 'Approved via Manager Panel' })
+    await loadFiles()
+  }
   catch (e) { console.error(e) }
 }
 

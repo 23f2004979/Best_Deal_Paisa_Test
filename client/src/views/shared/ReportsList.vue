@@ -1,9 +1,12 @@
 <template>
-  <div class="container mt-4">
+  <div class="container-fluid px-4 py-3">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-700 m-0"><i class="bi bi-folder-plus text-primary me-2"></i>Customer Reports</h2>
       <div class="d-flex gap-2">
-        <button v-if="userRole !== 'TELE_CALLER' && reports.length" class="btn btn-outline-success" @click="exportToExcel">
+        <button v-if="selectedReportIds.length" class="btn btn-primary animate-fade-in" @click="openShareModal">
+          <i class="bi bi-share me-1"></i> Share Selected ({{ selectedReportIds.length }})
+        </button>
+        <button v-if="userRole === 'MASTER_ADMIN' && filteredReports.length" class="btn btn-outline-success" @click="exportToExcel">
           <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
         </button>
         <button v-if="userRole === 'TELE_CALLER'" class="btn btn-accent" @click="openCreateModal">
@@ -12,18 +15,57 @@
       </div>
     </div>
 
-    <!-- Filters -->
-    <div class="row mb-4">
-      <div class="col-md-3">
-        <label class="form-label">Filter by Status</label>
-        <select v-model="filterStatus" class="form-select" @change="loadReports">
-          <option value="">All Statuses</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PENDING_APPROVAL">Pending Approval</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="CHANGES_REQUESTED">Changes Requested</option>
-        </select>
+    <!-- Filters and Search -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-3">
+        <div class="row g-3">
+          <!-- Created By -->
+          <div class="col-md-3">
+            <label class="form-label fw-600 small text-secondary">Created By (Name or ID)</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-person text-muted"></i></span>
+              <input v-model="filterCreatedBy" type="text" class="form-control border-start-0" placeholder="Creator name or ID..." />
+            </div>
+          </div>
+          <!-- Report Number -->
+          <div class="col-md-2">
+            <label class="form-label fw-600 small text-secondary">Report Number</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-hash text-muted"></i></span>
+              <input v-model="filterReportNumber" type="text" class="form-control border-start-0" placeholder="CRF-yyyy-xxxx..." />
+            </div>
+          </div>
+          <!-- Title -->
+          <div class="col-md-3">
+            <label class="form-label fw-600 small text-secondary">Report Title</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-card-text text-muted"></i></span>
+              <input v-model="filterTitle" type="text" class="form-control border-start-0" placeholder="Report title..." />
+            </div>
+          </div>
+          <!-- Filter Status -->
+          <div class="col-md-2">
+            <label class="form-label fw-600 small text-secondary">Approval Status</label>
+            <select v-model="filterStatus" class="form-select">
+              <option value="">All Statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CHANGES_REQUESTED">Changes Requested</option>
+            </select>
+          </div>
+          <!-- Filter Date -->
+          <div class="col-md-2">
+            <label class="form-label fw-600 small text-secondary">Date</label>
+            <select v-model="filterDate" class="form-select">
+              <option value="">All Dates</option>
+              <option v-for="d in uniqueDates" :key="d" :value="d">
+                {{ d }}
+              </option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -34,27 +76,44 @@
           <table class="table table-hover mb-0">
             <thead>
               <tr>
+                <th style="width: 40px;">
+                  <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" class="form-check-input" />
+                </th>
                 <th>Report No.</th>
                 <th>Title</th>
-                <th>Created By</th>
+                <th>Creator Name/Role</th>
+                <th>Assigned TL</th>
+                <th>Assigned Manager</th>
                 <th>Date</th>
                 <th>Status</th>
                 <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!reports.length">
-                <td colspan="6" class="text-center py-5 text-muted">
+              <tr v-if="!filteredReports.length">
+                <td colspan="9" class="text-center py-5 text-muted">
                   <i class="bi bi-folder2-open fs-2 mb-2 d-block"></i>
                   No reports found.
                 </td>
               </tr>
-              <tr v-for="report in reports" :key="report.id">
+              <tr v-for="report in filteredReports" :key="report.id">
+                <td>
+                  <input type="checkbox" :value="report.id" v-model="selectedReportIds" class="form-check-input" />
+                </td>
                 <td class="fw-600 text-primary">{{ report.reportNumber }}</td>
                 <td>{{ report.title }}</td>
                 <td>
                   <span class="fw-500">{{ report.createdBy?.name }}</span>
                   <small class="text-muted d-block" style="font-size: 0.75rem;">{{ formatRole(report.createdBy?.role) }}</small>
+                </td>
+                <td>
+                  <span v-if="report.createdBy?.teamLead">{{ report.createdBy.teamLead.name }}</span>
+                  <span v-else class="text-muted">—</span>
+                </td>
+                <td>
+                  <span v-if="report.createdBy?.manager">{{ report.createdBy.manager.name }}</span>
+                  <span v-else-if="report.createdBy?.teamLead?.manager">{{ report.createdBy.teamLead.manager.name }}</span>
+                  <span v-else class="text-muted">—</span>
                 </td>
                 <td>{{ new Date(report.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }}</td>
                 <td>
@@ -63,6 +122,11 @@
                   </span>
                 </td>
                 <td class="text-end">
+                  <span v-if="report.attachmentUrl" class="me-2">
+                    <a :href="report.attachmentUrl" target="_blank" class="btn btn-sm btn-outline-info" title="Preview/Download Attachment">
+                      <i class="bi bi-paperclip"></i> File
+                    </a>
+                  </span>
                   <button class="btn btn-sm btn-outline-primary me-2" @click="viewReportDetails(report)">
                     <i class="bi bi-eye me-1"></i> View
                   </button>
@@ -140,6 +204,18 @@
                 <textarea v-model="form.remarks" class="form-control" rows="2" placeholder="Any specific requirements or lead remarks..."></textarea>
               </div>
 
+              <h6 class="fw-600 mb-3 border-bottom pb-2 pt-2 text-secondary">File Attachment</h6>
+              <div class="mb-3">
+                <label class="form-label">Upload / Attach File</label>
+                <input type="file" class="form-control" @change="onFileChange" />
+                <div v-if="uploadingFile" class="text-primary small mt-1">
+                  <span class="spinner-border spinner-border-sm me-1"></span> Simulating file upload...
+                </div>
+                <div v-if="form.attachmentUrl" class="text-success small mt-1">
+                  <i class="bi bi-check-circle-fill me-1"></i> Attached: <strong>{{ form.attachmentUrl.split('/').pop() }}</strong>
+                </div>
+              </div>
+
               <button type="submit" class="btn btn-accent w-100 mt-2">
                 <i class="bi bi-save me-1"></i> Submit Report for Approval
               </button>
@@ -158,6 +234,9 @@
               <i class="bi bi-file-earmark-check me-2"></i>Report Details: {{ selectedReport?.reportNumber }}
             </h5>
             <div>
+              <button class="btn btn-sm btn-outline-primary me-2" @click="shareSingleReport(selectedReport)">
+                <i class="bi bi-share me-1"></i> Share
+              </button>
               <button class="btn btn-sm btn-outline-secondary me-2" @click="downloadPDF(selectedReport)">
                 <i class="bi bi-file-earmark-pdf me-1"></i> PDF
               </button>
@@ -235,6 +314,28 @@
               </div>
             </div>
 
+            <!-- File Attachment Section -->
+            <h6 class="fw-700 text-secondary mb-3"><i class="bi bi-paperclip text-primary me-2"></i>File Attachment</h6>
+            <div class="card border-0 bg-light p-3 mb-4 shadow-sm">
+              <div v-if="selectedReport?.attachmentUrl" class="d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="bi bi-file-earmark-arrow-down-fill text-primary fs-3 me-2"></i>
+                  <span class="fw-600">{{ selectedReport.attachmentUrl.split('/').pop() }}</span>
+                </div>
+                <div>
+                  <a :href="selectedReport.attachmentUrl" target="_blank" class="btn btn-sm btn-primary me-2">
+                    <i class="bi bi-eye me-1"></i> Preview
+                  </a>
+                  <a :href="selectedReport.attachmentUrl" :download="selectedReport.attachmentUrl.split('/').pop()" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-download me-1"></i> Download
+                  </a>
+                </div>
+              </div>
+              <div v-else class="text-muted small">
+                No file attachment uploaded for this report.
+              </div>
+            </div>
+
             <!-- Approval Checklists / Comments -->
             <h6 class="fw-700 text-secondary mb-3"><i class="bi bi-clock-history text-primary me-2"></i>Approval History & Log</h6>
             <div class="timeline mb-4">
@@ -284,16 +385,71 @@
         </div>
       </div>
     </div>
+
+    <!-- Share Modal -->
+    <div v-if="showShareModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 1060;">
+      <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-700 text-primary">
+              <i class="bi bi-share me-2"></i>Share Reports
+            </h5>
+            <button type="button" class="btn-close" @click="closeShareModal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small">
+              Sharing <strong>{{ selectedReportIds.length }}</strong> report(s) with active members of the organization.
+            </p>
+            
+            <div class="mb-3">
+              <label class="form-label fw-600 small text-secondary">Search Colleagues</label>
+              <input v-model="searchUserQuery" type="text" class="form-control mb-2" placeholder="Search by name, email or ID..." />
+              
+              <div class="border rounded bg-light p-2" style="max-height: 250px; overflow-y: auto;">
+                <div v-if="!filteredUsers.length" class="text-muted text-center py-3 small">
+                  No active colleagues found.
+                </div>
+                <div v-else v-for="(u, idx) in filteredUsers" :key="u.id" class="form-check py-2" :class="{'border-bottom': idx < filteredUsers.length - 1}">
+                  <input class="form-check-input" type="checkbox" :value="u.id" v-model="selectedUserIds" :id="'share-user-' + u.id" />
+                  <label class="form-check-label w-100 cursor-pointer" :for="'share-user-' + u.id">
+                    <span class="fw-600 text-dark small d-block">{{ u.name }}</span>
+                    <span class="text-muted" style="font-size: 0.75rem;">{{ u.email }} | {{ formatRole(u.role) }} ({{ u.empId }})</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-secondary small mb-3 animate-fade-in" v-if="selectedUserIds.length > 0">
+              Selected: <strong>{{ selectedUserIds.length }}</strong> recipient(s).
+            </div>
+
+            <button class="btn btn-accent w-100 py-2 fw-600" @click="submitBulkShare" :disabled="!selectedUserIds.length || isSharing">
+              <span v-if="isSharing" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+              <i v-else class="bi bi-check2-circle me-1"></i> Confirm & Share
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import api from '../../api/axios';
+
+const route = useRoute();
 
 const reports = ref([]);
 const userRole = ref('');
 const filterStatus = ref('');
+
+// Filters state
+const filterCreatedBy = ref('');
+const filterReportNumber = ref('');
+const filterTitle = ref('');
+const filterDate = ref('');
 
 const showModal = ref(false);
 const showViewModal = ref(false);
@@ -303,6 +459,16 @@ const currentId = ref(null);
 const approvalComment = ref('');
 const selectedReport = ref(null);
 
+// Bulk sharing state
+const selectedReportIds = ref([]);
+const showShareModal = ref(false);
+const usersList = ref([]);
+const searchUserQuery = ref('');
+const selectedUserIds = ref([]);
+const isSharing = ref(false);
+
+const uploadingFile = ref(false);
+
 const form = ref({
   title: '',
   description: '',
@@ -311,23 +477,156 @@ const form = ref({
   customerEmail: '',
   loanAmount: '',
   loanType: '',
-  remarks: ''
+  remarks: '',
+  attachmentUrl: ''
 });
 
 onMounted(() => {
   const user = JSON.parse(localStorage.getItem('emp_user') || '{}');
   userRole.value = user.role;
+  if (route.query.search) {
+    filterReportNumber.value = route.query.search;
+  }
   loadReports();
 });
 
 const loadReports = async () => {
   try {
+    selectedReportIds.value = []; // Reset checkboxes on load
     let url = '/shared/reports';
-    if (filterStatus.value) url += `?status=${filterStatus.value}`;
     const res = await api.get(url);
     reports.value = res.data;
   } catch (err) {
     console.error(err);
+  }
+};
+
+
+const uniqueDates = computed(() => {
+  const datesSet = new Set();
+  reports.value.forEach(r => {
+    const d = new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    datesSet.add(d);
+  });
+  return Array.from(datesSet).sort((a, b) => new Date(b) - new Date(a));
+});
+
+const filteredReports = computed(() => {
+  return reports.value.filter(r => {
+    // 1. Filter by Created By (Name or ID)
+    if (filterCreatedBy.value) {
+      const q = filterCreatedBy.value.toLowerCase();
+      const empName = r.createdBy?.name?.toLowerCase() || '';
+      const empId = r.createdBy?.empId?.toLowerCase() || '';
+      if (!empName.includes(q) && !empId.includes(q)) {
+        return false;
+      }
+    }
+
+    // 2. Filter by Report Number
+    if (filterReportNumber.value) {
+      const q = filterReportNumber.value.toLowerCase();
+      const repNum = r.reportNumber?.toLowerCase() || '';
+      if (!repNum.includes(q)) {
+        return false;
+      }
+    }
+
+    // 3. Filter by Title
+    if (filterTitle.value) {
+      const q = filterTitle.value.toLowerCase();
+      const title = r.title?.toLowerCase() || '';
+      if (!title.includes(q)) {
+        return false;
+      }
+    }
+
+    // 4. Filter by Status
+    if (filterStatus.value) {
+      if (r.status !== filterStatus.value) {
+        return false;
+      }
+    }
+
+    // 5. Filter by Date
+    if (filterDate.value) {
+      const repDate = new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      if (repDate !== filterDate.value) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+});
+
+const isAllSelected = computed(() => {
+  return filteredReports.value.length > 0 && selectedReportIds.value.length === filteredReports.value.length;
+});
+
+const filteredUsers = computed(() => {
+  if (!searchUserQuery.value) return usersList.value;
+  const q = searchUserQuery.value.toLowerCase();
+  return usersList.value.filter(u => 
+    u.name.toLowerCase().includes(q) || 
+    u.email.toLowerCase().includes(q) || 
+    u.empId.toLowerCase().includes(q)
+  );
+});
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedReportIds.value = [];
+  } else {
+    selectedReportIds.value = filteredReports.value.map(r => r.id);
+  }
+};
+
+const openShareModal = async () => {
+  searchUserQuery.value = '';
+  selectedUserIds.value = [];
+  showShareModal.value = true;
+  try {
+    const res = await api.get('/shared/users');
+    usersList.value = res.data;
+  } catch (err) {
+    console.error('Failed to load users for sharing', err);
+    alert('Failed to load user list.');
+  }
+};
+
+const closeShareModal = () => {
+  showShareModal.value = false;
+  usersList.value = [];
+  selectedUserIds.value = [];
+  searchUserQuery.value = '';
+};
+
+const shareSingleReport = (report) => {
+  selectedReportIds.value = [report.id];
+  openShareModal();
+};
+
+const submitBulkShare = async () => {
+  if (selectedReportIds.value.length === 0 || selectedUserIds.value.length === 0) return;
+  isSharing.value = true;
+  try {
+    const res = await api.post('/shared/reports/bulk-share', {
+      fileIds: selectedReportIds.value,
+      sharedWithIds: selectedUserIds.value
+    });
+    alert(res.data.message || 'Reports shared successfully!');
+    selectedReportIds.value = [];
+    closeShareModal();
+    if (showViewModal.value) {
+      closeViewModal();
+    }
+    loadReports();
+  } catch (err) {
+    console.error('Failed to share reports', err);
+    alert('Error sharing reports: ' + (err.response?.data?.message || err.message));
+  } finally {
+    isSharing.value = false;
   }
 };
 
@@ -338,6 +637,8 @@ const statusBadge = (status) => {
   if (status === 'CHANGES_REQUESTED') return 'bg-info text-white';
   return 'bg-secondary text-white';
 };
+
+
 
 const formatRole = (role) => {
   const map = {
@@ -379,7 +680,8 @@ const openCreateModal = () => {
     customerEmail: '',
     loanAmount: '',
     loanType: '',
-    remarks: ''
+    remarks: '',
+    attachmentUrl: ''
   };
   showModal.value = true;
 };
@@ -421,10 +723,22 @@ const editReport = (report) => {
     customerEmail: details.email || '',
     loanAmount: details.loanAmount || '',
     loanType: details.loanType || '',
-    remarks: details.remarks || ''
+    remarks: details.remarks || '',
+    attachmentUrl: report.attachmentUrl || ''
   };
   editMode.value = true;
   showModal.value = true;
+};
+
+const onFileChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  uploadingFile.value = true;
+  setTimeout(() => {
+    uploadingFile.value = false;
+    form.value.attachmentUrl = `/uploads/${encodeURIComponent(file.name)}`;
+  }, 1000);
 };
 
 const saveReport = async () => {
@@ -441,7 +755,8 @@ const saveReport = async () => {
     const payload = {
       title: form.value.title,
       description: form.value.description,
-      customerDetails
+      customerDetails,
+      attachmentUrl: form.value.attachmentUrl
     };
 
     if (editMode.value) {
@@ -497,7 +812,7 @@ const exportToExcel = () => {
     'Customer Email', 'Loan Amount', 'Loan Type', 'Remarks'
   ];
   
-  const rows = reports.value.map(r => {
+  const rows = filteredReports.value.map(r => {
     let details = {};
     try {
       details = r.customerDetails ? JSON.parse(r.customerDetails) : {};

@@ -42,6 +42,9 @@ model User {
   approvalLogs    ApprovalLog[]
   issuesReported  Issue[]          @relation("ReporterRelation")
   issuesAssigned  Issue[]          @relation("AssignedSeniorRelation")
+  issuesResolved  Issue[]          @relation("ResolvedRelation")
+  sharesReceived  FileShare[]      @relation("SharedWithUser")
+  sharesSent      FileShare[]      @relation("SharedByUser")
 }
 
 model SalaryHistory {
@@ -67,12 +70,14 @@ model File {
   createdBy       User       @relation(fields: [createdById], references: [id])
   
   approvalLevel   Int        @default(1) // 1: TL, 2: Manager, 3: Admin
+  attachmentUrl   String?
   
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   
   history         AppHistory[]
   approvalLogs    ApprovalLog[]
+  shares          FileShare[]
 }
 
 model ApprovalLog {
@@ -159,6 +164,21 @@ model Issue {
   reporter         User     @relation("ReporterRelation", fields: [reporterId], references: [id])
   assignedSeniorId Int
   assignedSenior   User     @relation("AssignedSeniorRelation", fields: [assignedSeniorId], references: [id])
+  resolvedById     Int?
+  resolvedBy       User?    @relation("ResolvedRelation", fields: [resolvedById], references: [id])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model FileShare {
+  id           Int      @id @default(autoincrement())
+  fileId       Int
+  file         File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  sharedWithId Int
+  sharedWith   User     @relation("SharedWithUser", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  sharedById   Int
+  sharedBy     User     @relation("SharedByUser", fields: [sharedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([fileId, sharedWithId])
 }

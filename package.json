@@ -2,8 +2,6 @@
   "name": "emp-portal",
   "version": "1.0.0",
   "scripts": {
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install && cd ..",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "build": "cd client && npm install && npm run build",
     "start": "node server/src/server.js",
     "dev:server": "cd server && npx nodemon src/server.js",
@@ -13,7 +11,6 @@
     "db:studio": "npx prisma studio"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
     "prisma": "^5.7.0"
   },
   "dependencies": {

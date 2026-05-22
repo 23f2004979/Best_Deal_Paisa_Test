@@ -13,7 +13,7 @@
         {{ new Date(row.createdAt).toLocaleDateString() }}
       </template>
       <template #actions="{ row }">
-        <div class="btn-group btn-group-sm" v-if="row.status === 'PENDING'">
+        <div class="btn-group btn-group-sm" v-if="row.status === 'PENDING_APPROVAL'">
           <button class="btn btn-outline-success btn-sm" @click="updateStatus(row.id, 'APPROVED')">Approve</button>
           <button class="btn btn-outline-danger btn-sm" @click="updateStatus(row.id, 'REJECTED')">Reject</button>
         </div>
@@ -24,11 +24,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '../../api/axios'
 import DataTable from '../../components/common/DataTable.vue'
 import StatusBadge from '../../components/common/StatusBadge.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 
+const route = useRoute()
 const loading = ref(true)
 const files = ref([])
 const cols = [
@@ -42,7 +44,12 @@ const cols = [
 async function loadFiles() {
   loading.value = true
   try {
-    const { data } = await api.get('/admin/files')
+    const status = route.query.status
+    let url = '/admin/files'
+    if (status) {
+      url += `?status=${status}`
+    }
+    const { data } = await api.get(url)
     files.value = data
   } catch (e) { console.error(e) }
   finally { loading.value = false }
@@ -50,7 +57,7 @@ async function loadFiles() {
 
 async function updateStatus(id, status) {
   try {
-    await api.patch(`/admin/files/${id}/status`, { status })
+    await api.post(`/shared/reports/${id}/approve`, { action: status, comments: 'Approved via Admin Panel' })
     await loadFiles()
   } catch (e) { console.error(e) }
 }

@@ -1,0 +1,1 @@
+import{_ as n,o as t,c as o,a as s}from"./index-OUpODPvF.js";const r={},a={class:"d-flex justify-content-center py-5"};function c(i,e){return t(),o("div",a,[...e[0]||(e[0]=[s("div",{class:"spinner-border text-warning",role:"status"},[s("span",{class:"visually-hidden"},"Loading...")],-1)])])}const l=n(r,[["render",c]]);export{l as L};

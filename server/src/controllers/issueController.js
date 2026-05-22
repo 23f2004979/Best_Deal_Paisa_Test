@@ -59,6 +59,15 @@ exports.getMyIssues = async (req, res) => {
     const userId = req.user.id;
     const issues = await prisma.issue.findMany({
       where: { reporterId: userId },
+      include: {
+        resolvedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json(issues);
@@ -87,6 +96,13 @@ exports.getIncomingIssues = async (req, res) => {
             name: true,
             email: true,
             empId: true,
+            role: true
+          }
+        },
+        resolvedBy: {
+          select: {
+            id: true,
+            name: true,
             role: true
           }
         }
@@ -124,9 +140,25 @@ exports.updateIssueStatus = async (req, res) => {
       return res.status(403).json({ message: 'Access denied. You are not assigned to resolve this issue.' });
     }
 
+    const updateData = { status };
+    if (status === 'RESOLVED') {
+      updateData.resolvedById = userId;
+    } else {
+      updateData.resolvedById = null;
+    }
+
     const updatedIssue = await prisma.issue.update({
       where: { id: Number(id) },
-      data: { status }
+      data: updateData,
+      include: {
+        resolvedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true
+          }
+        }
+      }
     });
 
     res.json(updatedIssue);

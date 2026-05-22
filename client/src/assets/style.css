@@ -42,40 +42,87 @@ body {
 }
 
 .emp-topbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 1100;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: .75rem 1rem; 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  height: 56px;
+  z-index: 1100;
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  padding: .75rem 1.5rem; 
   background: var(--sidebar-bg-1);
   box-shadow: var(--shadow-md);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .emp-topbar .brand { color: #fff; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; }
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 .emp-sidebar {
-  background: linear-gradient(180deg, var(--sidebar-bg-1) 0%, var(--sidebar-bg-2) 100%) !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
   width: var(--sidebar-w) !important;
-  display: flex; flex-direction: column;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.05);
+  display: flex; 
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--sidebar-bg-1) 0%, var(--sidebar-bg-2) 100%) !important;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.15);
   border-right: 1px solid rgba(255,255,255,0.05);
-  z-index: 1000;
+  z-index: 1200;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar Backdrop overlay on Mobile/Tablet */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1150;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* When Sidebar is Open */
+.sidebar-open .emp-sidebar {
+  transform: translateX(0);
+}
+
+/* Main Content Area */
+.emp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 56px;
+  padding: 1.5rem;
+  width: 100%;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (min-width: 992px) {
-  .emp-sidebar {
-    position: fixed; top: 0; left: 0; height: 100vh;
-    transform: none !important; visibility: visible !important;
+  .emp-main {
+    padding: 2.5rem;
   }
-  .emp-main { 
+  .sidebar-open .emp-main { 
     margin-left: var(--sidebar-w); 
-    padding: 2.5rem; 
-    flex: none;
     width: calc(100% - var(--sidebar-w)); 
+  }
+  .sidebar-open .emp-topbar {
+    left: var(--sidebar-w);
+    width: calc(100% - var(--sidebar-w));
   }
 }
 
-@media (max-width: 991px) {
-  .emp-main { margin-top: 56px; padding: 1.5rem; }
-}
 
 /* Sidebar internal parts */
 .sidebar-brand {

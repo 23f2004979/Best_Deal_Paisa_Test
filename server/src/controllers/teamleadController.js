@@ -79,7 +79,7 @@ exports.getSubordinatesAttendance = async (req, res) => {
     
     const users = await prisma.user.findMany({
       where: { teamLeadId: req.user.id, role: 'TELE_CALLER', status: 'ACTIVE' },
-      select: { id: true, name: true, role: true, baseSalary: true, attendance: { where: { month, year } } }
+      select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
     const now = new Date();
@@ -87,13 +87,13 @@ exports.getSubordinatesAttendance = async (req, res) => {
       const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
       const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
       const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round((u.baseSalary / daysInMonth) * presentDays);
+      const projectedSalary = Math.round(u.dailyWage * presentDays);
       const todayRecord = u.attendance.find(a => {
         const d = new Date(a.date);
         return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
       return {
-        id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary,
+        id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary, dailyWage: u.dailyWage,
         presentDays, absentDays, leaveDays, projectedSalary,
         isMarkedToday: !!todayRecord,
         todayStatus: todayRecord ? todayRecord.status : null

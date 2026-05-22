@@ -18,6 +18,32 @@ router.post('/reports', verifyToken, verifyRole(['TELE_CALLER']), reportControll
 router.put('/reports/:id', verifyToken, verifyRole(['TELE_CALLER']), reportController.updateReport);
 router.get('/reports', verifyToken, reportController.getReports);
 router.post('/reports/:id/approve', verifyToken, verifyRole(['TEAM_LEAD', 'MANAGER', 'ADMIN']), reportController.approveReport);
+router.post('/reports/bulk-share', verifyToken, reportController.bulkShareReports);
+
+// Get list of active users to share files with (excluding current user)
+router.get('/users', verifyToken, async (req, res) => {
+  try {
+    const prisma = require('../config/db');
+    const users = await prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        id: { not: req.user.id }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        empId: true
+      },
+      orderBy: { name: 'asc' }
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('Get active users error:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
 
 // Dashboard routes depending on role
 router.get('/dashboard', verifyToken, require('../controllers/dashboardController').getDashboard);

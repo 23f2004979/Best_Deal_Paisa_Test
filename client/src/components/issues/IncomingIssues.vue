@@ -52,7 +52,10 @@
               <button v-if="issue.status !== 'RESOLVED'" class="btn btn-xs btn-outline-success py-0 px-2" style="font-size: 0.75rem;" @click="updateStatus(issue.id, 'RESOLVED')">
                 <i class="bi bi-check-lg"></i> Resolve
               </button>
-              <span v-else class="text-success fw-bold" style="font-size: 0.75rem;"><i class="bi bi-check-circle-fill"></i> Resolved</span>
+              <span v-else class="text-success fw-bold d-block" style="font-size: 0.75rem;">
+                <i class="bi bi-check-circle-fill"></i> Resolved
+                <span v-if="issue.resolvedBy" class="text-secondary small d-block" style="font-weight: 500;">by {{ issue.resolvedBy.name }}</span>
+              </span>
             </td>
           </tr>
         </tbody>

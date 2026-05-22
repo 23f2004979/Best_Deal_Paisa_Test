@@ -1,4 +1,14 @@
 const prisma = require('../config/db');
+const bcrypt = require('bcrypt');
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  // 8+ chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`\-]).{8,}$/.test(password);
+}
 
 // GET /api/admin/dashboard
 exports.getDashboard = async (req, res) => {
@@ -8,7 +18,7 @@ exports.getDashboard = async (req, res) => {
       prisma.user.count({ where: { role: 'TEAM_LEAD',   status: 'ACTIVE'   } }),
       prisma.user.count({ where: { role: 'TELE_CALLER', status: 'ACTIVE'   } }),
       prisma.user.count({ where: { status: 'PENDING' } }),
-      prisma.file.count({ where: { status: 'PENDING' } }),
+      prisma.file.count({ where: { status: 'PENDING_APPROVAL' } }),
     ]);
     res.json({ managers, teamLeads, teleCallers, pendingUsers, pendingFiles });
   } catch (err) {
@@ -34,11 +44,118 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const { name, email, role, phone, baseSalary, dailyWage, status, managerId, teamLeadId, password } = req.body;
+
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Role-based privilege escalation checks
+    if (req.user.role !== 'MASTER_ADMIN') {
+      // Standard ADMIN cannot edit ADMIN/MASTER_ADMIN profiles
+      if (targetUser.role === 'ADMIN' || targetUser.role === 'MASTER_ADMIN') {
+        return res.status(403).json({ message: 'You do not have permission to edit administrative accounts.' });
+      }
+      // Standard ADMIN cannot promote users to ADMIN or MASTER_ADMIN
+      if (role === 'ADMIN' || role === 'MASTER_ADMIN') {
+        return res.status(403).json({ message: 'You do not have permission to grant administrative roles.' });
+      }
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (baseSalary !== undefined) updateData.baseSalary = Number(baseSalary) || 0;
+    if (dailyWage !== undefined) updateData.dailyWage = Number(dailyWage) || 0;
+    if (managerId !== undefined) updateData.managerId = managerId ? Number(managerId) : null;
+    if (teamLeadId !== undefined) updateData.teamLeadId = teamLeadId ? Number(teamLeadId) : null;
+
+    if (email !== undefined) {
+      if (!validateEmail(email)) {
+        return res.status(400).json({ message: 'Invalid email format.' });
+      }
+      updateData.email = email;
+    }
+
+    if (role !== undefined) {
+      updateData.role = role;
+      const prefixMap = {
+        'MANAGER': 'MGR',
+        'TEAM_LEAD': 'TL',
+        'TELE_CALLER': 'TC',
+        'ADMIN': 'ADM'
+      };
+      if (prefixMap[role] && !targetUser.empId.startsWith(prefixMap[role])) {
+        const prefix = prefixMap[role];
+        const latestUser = await prisma.user.findFirst({
+          where: { empId: { startsWith: prefix } },
+          orderBy: { empId: 'desc' }
+        });
+        let nextNum = 1001;
+        if (latestUser && latestUser.empId) {
+          const parts = latestUser.empId.split('-');
+          if (parts.length > 1) {
+            nextNum = parseInt(parts[1]) + 1;
+          }
+        }
+        updateData.empId = `${prefix}-${nextNum}`;
+      }
+    }
+
+    if (status !== undefined) {
+      if (targetUser.role === 'ADMIN' || targetUser.role === 'MASTER_ADMIN') {
+        if (['BLACKLISTED', 'DEACTIVATED', 'DELETED'].includes(status)) {
+          return res.status(400).json({ message: 'Administrative accounts cannot be blacklisted, deactivated, or deleted.' });
+        }
+      }
+      updateData.status = status;
+    }
+
+    if (password !== undefined && password !== '') {
+      if (!validatePassword(password)) {
+        return res.status(400).json({
+          message: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+        });
+      }
+      updateData.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData
+    });
+
+    res.json({ message: 'User profile updated successfully.', user: updatedUser });
+  } catch (err) {
+    console.error('updateUserProfile error:', err);
+    if (err.code === 'P2002') {
+      return res.status(400).json({ message: 'Email address already in use.' });
+    }
+    res.status(500).json({ message: 'Server error during user update.' });
+  }
+};
+
 // PATCH /api/admin/users/:id/status  — body: { status: 'ACTIVE' | 'REJECTED' | 'BLACKLISTED' | 'DELETED' }
 exports.updateUserStatus = async (req, res) => {
   try {
+    const userId = Number(req.params.id);
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (targetUser.role === 'ADMIN' || targetUser.role === 'MASTER_ADMIN') {
+      if (['BLACKLISTED', 'DEACTIVATED', 'DELETED'].includes(req.body.status)) {
+        return res.status(400).json({ message: 'Administrative accounts cannot be blacklisted, deactivated, or deleted.' });
+      }
+    }
+
     const user = await prisma.user.update({
-      where: { id: Number(req.params.id) },
+      where: { id: userId },
       data:  { status: req.body.status }
     });
     res.json({ message: req.body.status === 'DELETED' ? 'User deleted successfully.' : 'User status updated.', user });
@@ -52,7 +169,9 @@ exports.updateUserStatus = async (req, res) => {
 exports.getFiles = async (req, res) => {
   try {
     const where = {};
-    if (req.query.status) where.status = req.query.status;
+    if (req.query.status) {
+      where.status = req.query.status === 'PENDING' ? 'PENDING_APPROVAL' : req.query.status;
+    }
     const files = await prisma.file.findMany({
       where,
       include: { createdBy: { select: { id: true, name: true, role: true } } },
@@ -118,7 +237,7 @@ exports.getSubordinatesAttendance = async (req, res) => {
     
     const users = await prisma.user.findMany({
       where: { role: 'MANAGER', status: 'ACTIVE' },
-      select: { id: true, name: true, role: true, baseSalary: true, attendance: { where: { month, year } } }
+      select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
     const now = new Date();
@@ -126,13 +245,13 @@ exports.getSubordinatesAttendance = async (req, res) => {
       const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
       const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
       const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round((u.baseSalary / daysInMonth) * presentDays);
+      const projectedSalary = Math.round(u.dailyWage * presentDays);
       const todayRecord = u.attendance.find(a => {
         const d = new Date(a.date);
         return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
       return {
-        id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary,
+        id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary, dailyWage: u.dailyWage,
         presentDays, absentDays, leaveDays, projectedSalary,
         isMarkedToday: !!todayRecord,
         todayStatus: todayRecord ? todayRecord.status : null
@@ -197,7 +316,7 @@ exports.getAnalytics = async (req, res) => {
     const users = await prisma.user.findMany({
       where: { role: { in: ['MANAGER', 'TEAM_LEAD'] }, status: 'ACTIVE' },
       select: {
-        id: true, name: true, empId: true, role: true, baseSalary: true,
+        id: true, name: true, empId: true, role: true, baseSalary: true, dailyWage: true,
         attendance: { where: { month, year } }
       }
     });
@@ -206,7 +325,7 @@ exports.getAnalytics = async (req, res) => {
       const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
       const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
       const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round((u.baseSalary / daysInMonth) * presentDays);
+      const projectedSalary = Math.round(u.dailyWage * presentDays);
       return {
         id: u.id, empId: u.empId, name: u.name, role: u.role,
         presentDays, absentDays, leaveDays, totalDays: daysInMonth, projectedSalary

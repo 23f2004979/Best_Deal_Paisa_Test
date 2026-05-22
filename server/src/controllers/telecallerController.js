@@ -8,7 +8,7 @@ exports.getDashboard = async (req, res) => {
     const year = now.getFullYear();
     const [totalFiles, pendingFiles, presentDays, loans] = await Promise.all([
       prisma.file.count({ where: { createdById: req.user.id } }),
-      prisma.file.count({ where: { createdById: req.user.id, status: 'PENDING' } }),
+      prisma.file.count({ where: { createdById: req.user.id, status: 'PENDING_APPROVAL' } }),
       prisma.attendance.count({ where: { userId: req.user.id, month, year, status: 'PRESENT' } }),
       prisma.loanDisbursed.count({ where: { teleCallerId: req.user.id, month, year } }),
     ]);

@@ -64,6 +64,9 @@
                   <span class="badge py-1 px-2" :class="statusClass(issue.status)">
                     {{ formatStatus(issue.status) }}
                   </span>
+                  <small v-if="issue.status === 'RESOLVED' && issue.resolvedBy" class="text-muted d-block" style="font-size: 0.7rem; font-weight: 500; margin-top: 2px;">
+                    by {{ issue.resolvedBy.name }}
+                  </small>
                 </td>
                 <td class="text-end px-3 text-muted" style="font-size: 0.75rem;">
                   {{ new Date(issue.createdAt).toLocaleDateString() }}

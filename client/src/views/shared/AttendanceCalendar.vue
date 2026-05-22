@@ -82,10 +82,15 @@ const summary = ref(null);
 const daysInMonth = computed(() => {
   const daysInMon = new Date(selectedYear.value, selectedMonth.value, 0).getDate();
   const days = [];
+  const records = Array.isArray(attendanceRecords.value) ? attendanceRecords.value : [];
   for (let i = 1; i <= daysInMon; i++) {
     const d = new Date(selectedYear.value, selectedMonth.value - 1, i);
     const dStr = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-    const rec = attendanceRecords.value.find(r => r.date.split('T')[0] === dStr);
+    const rec = records.find(r => {
+      if (!r || !r.date) return false;
+      const dateStr = typeof r.date === 'string' ? r.date.split('T')[0] : new Date(r.date).toISOString().split('T')[0];
+      return dateStr === dStr;
+    });
     days.push({
       dayNum: i,
       date: d,
@@ -100,10 +105,12 @@ const daysInMonth = computed(() => {
 const loadData = async () => {
   try {
     const res = await api.get(`/shared/attendance?month=${selectedMonth.value}&year=${selectedYear.value}`);
-    attendanceRecords.value = res.data.attendance;
-    summary.value = res.data.summary;
+    attendanceRecords.value = res.data?.attendance || [];
+    summary.value = res.data?.summary || null;
   } catch (err) {
     console.error(err);
+    attendanceRecords.value = [];
+    summary.value = null;
   }
 };
 

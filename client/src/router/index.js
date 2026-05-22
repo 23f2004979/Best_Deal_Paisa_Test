@@ -12,6 +12,8 @@ const AttendanceCalendar   = () => import('../views/shared/AttendanceCalendar.vu
 const ReportsList          = () => import('../views/shared/ReportsList.vue')
 const AdminEmployeeManagement = () => import('../views/admin/AdminEmployeeManagement.vue')
 const IssuesView           = () => import('../views/shared/IssuesView.vue')
+const UsersView            = () => import('../views/admin/UsersView.vue')
+const FilesView            = () => import('../views/admin/FilesView.vue')
 
 const routes = [
   { path: '/',        redirect: '/login' },
@@ -25,6 +27,8 @@ const routes = [
 
   // Admin routes
   { path: '/admin/employees', component: AdminEmployeeManagement, meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
+  { path: '/admin/users',     component: UsersView,               meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
+  { path: '/admin/files',     component: FilesView,               meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
 
   { path: '/403', component: Forbidden },
   { path: '/:pathMatch(.*)*', component: NotFound },
