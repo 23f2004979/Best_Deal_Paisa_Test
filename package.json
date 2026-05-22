@@ -2,7 +2,7 @@
   "name": "emp-portal",
   "version": "1.0.0",
   "scripts": {
-    "build": "cd client && npm install && npm run build",
+    "build": "npm install --prefix server && cd client && npm install && npm run build",
     "start": "node server/src/server.js",
     "dev:server": "cd server && npx nodemon src/server.js",
     "dev:client": "cd client && npm run dev",
