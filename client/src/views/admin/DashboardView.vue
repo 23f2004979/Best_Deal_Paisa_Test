@@ -35,55 +35,6 @@
         </div>
       </div>
 
-      <!-- Manager Attendance Marking (Subordinate Panel) -->
-      <SubordinateAttendance rolePrefix="admin" />
-
-      <!-- Attendance Analytics & Operational Tracking -->
-      <div class="card border-0 shadow-sm mt-4">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-          <h6 class="fw-600 mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Attendance Analytics — Managers & Team Leads</h6>
-          <div class="d-flex gap-2">
-            <select v-model="analyticsMonth" class="form-select form-select-sm" style="width: auto;" @change="onPeriodChange">
-              <option v-for="m in 12" :key="m" :value="m">{{ new Date(2000, m-1).toLocaleString('default', { month: 'long' }) }}</option>
-            </select>
-            <input type="number" v-model="analyticsYear" class="form-control form-control-sm" style="width: 100px;" @change="onPeriodChange" />
-          </div>
-        </div>
-        <div class="card-body p-0">
-          <LoadingSpinner v-if="analyticsLoading" />
-          <div v-else class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Emp ID</th>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th class="text-center">Present</th>
-                  <th class="text-center">Absent</th>
-                  <th class="text-center">Leave</th>
-                  <th class="text-end">Projected Salary</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!analytics.attendanceData.length">
-                  <td colspan="7" class="text-center py-4 text-muted">No data found for selected period.</td>
-                </tr>
-                <tr v-for="user in analytics.attendanceData" :key="user.id">
-                  <td class="fw-500 text-primary">{{ user.empId }}</td>
-                  <td class="fw-500">{{ user.name }}</td>
-                  <td><span class="badge" :class="user.role === 'MANAGER' ? 'bg-primary' : 'bg-success'">{{ formatRole(user.role) }}</span></td>
-                  <td class="text-center"><span class="badge bg-success">{{ user.presentDays }}</span></td>
-                  <td class="text-center"><span class="badge bg-danger">{{ user.absentDays }}</span></td>
-                  <td class="text-center"><span class="badge bg-warning text-dark">{{ user.leaveDays }}</span></td>
-                  <td class="text-end fw-500 text-success">₹{{ user.projectedSalary?.toLocaleString() }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-
       <!-- Active Files Being Worked On -->
       <div class="card border-0 shadow-sm mt-4">
         <div class="card-header bg-light">
@@ -180,11 +131,11 @@
 
       <!-- Advanced Analytics: Leaderboard & Disbursement Trends -->
       <div class="row g-3 mt-2">
-        <!-- Performance Leaderboard (Top 5 Telecallers) -->
+        <!-- Performance Leaderboard (Top Employees Grouped by Role) -->
         <div class="col-md-6">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
-              <h6 class="fw-600 mb-0"><i class="bi bi-trophy text-warning me-2"></i>Performance Leaderboard — Top Telecallers</h6>
+              <h6 class="fw-600 mb-0"><i class="bi bi-trophy text-warning me-2"></i>Performance Leaderboard — Top Employees</h6>
               <span class="badge bg-primary-subtle text-primary">This Month</span>
             </div>
             <div class="card-body">
@@ -192,27 +143,97 @@
               <div v-else-if="!advAnalytics.leaderboard || !advAnalytics.leaderboard.length" class="text-center py-4 text-muted">
                 No approved disbursements recorded yet.
               </div>
-              <div v-else class="d-flex flex-column gap-3">
-                <div v-for="(tc, idx) in advAnalytics.leaderboard" :key="tc.id" class="d-flex align-items-center gap-3">
-                  <div class="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white shadow-sm"
-                       :style="{
-                         width: '32px', height: '32px',
-                         background: idx === 0 ? 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)' :
-                                     idx === 1 ? 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)' :
-                                     idx === 2 ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' :
-                                     'linear-gradient(135deg, #93c5fd 0%, #2563eb 100%)'
-                       }"
-                       style="font-size: 0.85rem;"
-                  >
-                    {{ idx + 1 }}
+              <div v-else class="d-flex flex-column gap-4">
+                <!-- Managers Group -->
+                <div v-if="groupedLeaderboard.managers.length">
+                  <div class="fw-bold text-primary mb-2 small text-uppercase tracking-wider">
+                    <i class="bi bi-briefcase me-1"></i> Managers
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ tc.name }}</div>
-                    <small class="text-muted d-block" style="font-size: 0.75rem;">ID: {{ tc.empId }}</small>
+                  <div class="d-flex flex-column gap-3">
+                    <div v-for="(tc, idx) in groupedLeaderboard.managers" :key="tc.id" class="d-flex align-items-center gap-3">
+                      <div class="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white shadow-sm"
+                           :style="{
+                             width: '32px', height: '32px',
+                             background: idx === 0 ? 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)' :
+                                         idx === 1 ? 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)' :
+                                         idx === 2 ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' :
+                                         'linear-gradient(135deg, #93c5fd 0%, #2563eb 100%)'
+                           }"
+                           style="font-size: 0.85rem;"
+                      >
+                        {{ idx + 1 }}
+                      </div>
+                      <div class="flex-grow-1">
+                        <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ tc.name }}</div>
+                        <small class="text-muted d-block" style="font-size: 0.75rem;">ID: {{ tc.empId }}</small>
+                      </div>
+                      <div class="text-end">
+                        <div class="fw-bold text-success" style="font-size: 0.9rem;">₹{{ tc.totalDisbursed.toLocaleString('en-IN') }}</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Disbursed</small>
+                      </div>
+                    </div>
                   </div>
-                  <div class="text-end">
-                    <div class="fw-bold text-success" style="font-size: 0.9rem;">₹{{ tc.totalDisbursed.toLocaleString('en-IN') }}</div>
-                    <small class="text-muted" style="font-size: 0.75rem;">Disbursed</small>
+                </div>
+
+                <!-- Team Leads Group -->
+                <div v-if="groupedLeaderboard.teamLeads.length">
+                  <div class="fw-bold text-success mb-2 small text-uppercase tracking-wider border-top pt-3" :class="{ 'mt-1': groupedLeaderboard.managers.length }">
+                    <i class="bi bi-people me-1"></i> Team Leads
+                  </div>
+                  <div class="d-flex flex-column gap-3">
+                    <div v-for="(tc, idx) in groupedLeaderboard.teamLeads" :key="tc.id" class="d-flex align-items-center gap-3">
+                      <div class="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white shadow-sm"
+                           :style="{
+                             width: '32px', height: '32px',
+                             background: idx === 0 ? 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)' :
+                                         idx === 1 ? 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)' :
+                                         idx === 2 ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' :
+                                         'linear-gradient(135deg, #93c5fd 0%, #2563eb 100%)'
+                           }"
+                           style="font-size: 0.85rem;"
+                      >
+                        {{ idx + 1 }}
+                      </div>
+                      <div class="flex-grow-1">
+                        <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ tc.name }}</div>
+                        <small class="text-muted d-block" style="font-size: 0.75rem;">ID: {{ tc.empId }}</small>
+                      </div>
+                      <div class="text-end">
+                        <div class="fw-bold text-success" style="font-size: 0.9rem;">₹{{ tc.totalDisbursed.toLocaleString('en-IN') }}</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Disbursed</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Telecallers Group -->
+                <div v-if="groupedLeaderboard.telecallers.length">
+                  <div class="fw-bold text-warning mb-2 small text-uppercase tracking-wider border-top pt-3" :class="{ 'mt-1': groupedLeaderboard.managers.length || groupedLeaderboard.teamLeads.length }">
+                    <i class="bi bi-headset me-1"></i> Tele Callers
+                  </div>
+                  <div class="d-flex flex-column gap-3">
+                    <div v-for="(tc, idx) in groupedLeaderboard.telecallers" :key="tc.id" class="d-flex align-items-center gap-3">
+                      <div class="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white shadow-sm"
+                           :style="{
+                             width: '32px', height: '32px',
+                             background: idx === 0 ? 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)' :
+                                         idx === 1 ? 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)' :
+                                         idx === 2 ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' :
+                                         'linear-gradient(135deg, #93c5fd 0%, #2563eb 100%)'
+                           }"
+                           style="font-size: 0.85rem;"
+                      >
+                        {{ idx + 1 }}
+                      </div>
+                      <div class="flex-grow-1">
+                        <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ tc.name }}</div>
+                        <small class="text-muted d-block" style="font-size: 0.75rem;">ID: {{ tc.empId }}</small>
+                      </div>
+                      <div class="text-end">
+                        <div class="fw-bold text-success" style="font-size: 0.9rem;">₹{{ tc.totalDisbursed.toLocaleString('en-IN') }}</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Disbursed</small>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -303,6 +324,14 @@ const allReports = ref([])
 
 const advLoading = ref(true)
 const advAnalytics = ref({ leaderboard: [], trends: [], avgTLHours: 0, avgMgrHours: 0 })
+
+const groupedLeaderboard = computed(() => {
+  const list = advAnalytics.value.leaderboard || []
+  const managers = list.filter(u => u.role === 'MANAGER').sort((a, b) => b.totalDisbursed - a.totalDisbursed)
+  const teamLeads = list.filter(u => u.role === 'TEAM_LEAD').sort((a, b) => b.totalDisbursed - a.totalDisbursed)
+  const telecallers = list.filter(u => u.role === 'TELE_CALLER').sort((a, b) => b.totalDisbursed - a.totalDisbursed)
+  return { managers, teamLeads, telecallers }
+})
 
 const getTrendBarColor = (type) => {
   const t = type.toLowerCase();

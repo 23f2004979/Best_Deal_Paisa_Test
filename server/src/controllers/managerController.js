@@ -136,15 +136,28 @@ exports.insertLoan = async (req, res) => {
   }
 };
 
-// GET /api/manager/subordinate-attendance — Only TEAM_LEAD users assigned to this manager
+// GET /api/manager/subordinate-attendance — TEAM_LEAD users and their TELE_CALLERs under this manager
 exports.getSubordinatesAttendance = async (req, res) => {
   try {
     const month = Number(req.query.month) || new Date().getMonth() + 1;
     const year  = Number(req.query.year)  || new Date().getFullYear();
     const daysInMonth = new Date(year, month, 0).getDate();
     
-    const users = await prisma.user.findMany({
+    // Fetch active Team Leads reporting to this manager
+    const teamLeads = await prisma.user.findMany({
       where: { managerId: req.user.id, role: 'TEAM_LEAD', status: 'ACTIVE' },
+      select: { id: true }
+    });
+    const tlIds = teamLeads.map(tl => tl.id);
+
+    // Fetch active Team Leads and Telecallers reporting to those Team Leads
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { managerId: req.user.id, role: 'TEAM_LEAD', status: 'ACTIVE' },
+          { teamLeadId: { in: tlIds }, role: 'TELE_CALLER', status: 'ACTIVE' }
+        ]
+      },
       select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
@@ -186,10 +199,23 @@ exports.markSubordinateAttendance = async (req, res) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Verify that the target user is a TEAM_LEAD assigned to this manager
     const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser || targetUser.role !== 'TEAM_LEAD' || targetUser.managerId !== req.user.id) {
-      return res.status(403).json({ message: 'You can only mark attendance for your assigned Team Leads.' });
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Verify that the target user is in this manager's hierarchy (direct Team Lead or Team Lead's Telecaller)
+    const teamLeads = await prisma.user.findMany({
+      where: { managerId: req.user.id, role: 'TEAM_LEAD', status: 'ACTIVE' },
+      select: { id: true }
+    });
+    const tlIds = teamLeads.map(tl => tl.id);
+
+    const isDirectTL = targetUser.role === 'TEAM_LEAD' && targetUser.managerId === req.user.id;
+    const isIndirectTC = targetUser.role === 'TELE_CALLER' && targetUser.teamLeadId && tlIds.includes(targetUser.teamLeadId);
+
+    if (!isDirectTL && !isIndirectTC) {
+      return res.status(403).json({ message: 'You can only mark attendance for your direct Team Leads or their Telecallers.' });
     }
 
     const month = now.getMonth() + 1;

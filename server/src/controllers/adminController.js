@@ -323,9 +323,9 @@ exports.getAnalytics = async (req, res) => {
     const year  = Number(req.query.year)  || new Date().getFullYear();
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    // Fetch Managers and Team Leads with attendance
+    // Fetch Managers, Team Leads and Tele Callers with attendance
     const users = await prisma.user.findMany({
-      where: { role: { in: ['MANAGER', 'TEAM_LEAD'] }, status: 'ACTIVE' },
+      where: { role: { in: ['MANAGER', 'TEAM_LEAD', 'TELE_CALLER'] }, status: 'ACTIVE' },
       select: {
         id: true, name: true, empId: true, role: true, baseSalary: true, dailyWage: true,
         attendance: { where: { month, year } }
@@ -382,33 +382,57 @@ exports.getAdvancedAnalytics = async (req, res) => {
     const month = Number(req.query.month) || new Date().getMonth() + 1;
     const year  = Number(req.query.year)  || new Date().getFullYear();
 
-    // 1. Performance Leaderboard (Top 5 Telecallers by Approved Loans)
-    const leaderboard = await prisma.loanDisbursed.groupBy({
-      by: ['teleCallerId'],
+    // 1. Performance Leaderboard (All Active Employees by Approved Loans)
+    const employees = await prisma.user.findMany({
+      where: { role: { notIn: ['ADMIN', 'MASTER_ADMIN'] }, status: 'ACTIVE' },
+      select: { id: true, name: true, empId: true, role: true, managerId: true, teamLeadId: true }
+    });
+
+    const approvedLoans = await prisma.loanDisbursed.findMany({
       where: { 
         status: 'APPROVED',
         month,
         year
-      },
-      _sum: { amount: true },
-      orderBy: { _sum: { amount: 'desc' } },
-      take: 5
+      }
     });
 
-    const leaderboardDetails = await Promise.all(
-      leaderboard.map(async item => {
-        const user = await prisma.user.findUnique({
-          where: { id: item.teleCallerId },
-          select: { name: true, empId: true }
+    const individualRevenue = {};
+    employees.forEach(emp => {
+      individualRevenue[emp.id] = 0;
+    });
+    approvedLoans.forEach(loan => {
+      individualRevenue[loan.teleCallerId] = (individualRevenue[loan.teleCallerId] || 0) + loan.amount;
+    });
+
+    const leaderboardDetails = employees.map(emp => {
+      let totalDisbursed = individualRevenue[emp.id] || 0;
+
+      if (emp.role === 'TEAM_LEAD') {
+        // Add revenues of all Telecallers reporting to this Team Lead
+        const subordinates = employees.filter(sub => sub.role === 'TELE_CALLER' && sub.teamLeadId === emp.id);
+        subordinates.forEach(sub => {
+          totalDisbursed += individualRevenue[sub.id] || 0;
         });
-        return {
-          id: item.teleCallerId,
-          name: user?.name || 'Unknown User',
-          empId: user?.empId || 'N/A',
-          totalDisbursed: item._sum.amount || 0
-        };
-      })
-    );
+      } else if (emp.role === 'MANAGER') {
+        // Add revenues of all Team Leads reporting to this Manager and their Telecallers
+        const tls = employees.filter(sub => sub.role === 'TEAM_LEAD' && sub.managerId === emp.id);
+        tls.forEach(tl => {
+          totalDisbursed += individualRevenue[tl.id] || 0;
+          const tcs = employees.filter(sub => sub.role === 'TELE_CALLER' && sub.teamLeadId === tl.id);
+          tcs.forEach(tc => {
+            totalDisbursed += individualRevenue[tc.id] || 0;
+          });
+        });
+      }
+
+      return {
+        id: emp.id,
+        name: emp.name,
+        empId: emp.empId,
+        role: emp.role,
+        totalDisbursed
+      };
+    }).sort((a, b) => b.totalDisbursed - a.totalDisbursed);
 
     // 2. Disbursement Trends / Loan Distribution by Category (from Approved Files)
     const approvedFiles = await prisma.file.findMany({

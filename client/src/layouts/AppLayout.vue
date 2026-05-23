@@ -36,18 +36,21 @@
           <SidebarLink to="/admin/employees" icon="people"        label="Employees" />
           <SidebarLink to="/reports"         icon="bar-chart-line" label="Reports" />
           <SidebarLink to="/admin/revenue"   icon="currency-rupee" label="Revenue" />
+          <SidebarLink to="/team-attendance" icon="calendar-range" label="Attendance & Salaries" />
           <SidebarLink to="/issues"          icon="exclamation-circle" label="Issues" />
         </template>
         <template v-else-if="auth.isManager">
           <SidebarLink to="/dashboard"       icon="speedometer2" label="Dashboard" />
           <SidebarLink to="/reports"         icon="folder2-open" label="Reports" />
           <SidebarLink to="/attendance"      icon="calendar-check" label="Attendance" />
+          <SidebarLink to="/team-attendance" icon="calendar-range" label="Team Attendance" />
           <SidebarLink to="/issues"          icon="exclamation-circle" label="Issues" />
         </template>
         <template v-else-if="auth.isTeamLead">
           <SidebarLink to="/dashboard"       icon="speedometer2"    label="Dashboard" />
           <SidebarLink to="/reports"         icon="folder2-open"    label="Reports" />
           <SidebarLink to="/attendance"      icon="calendar-check"  label="Attendance" />
+          <SidebarLink to="/team-attendance" icon="calendar-range" label="Team Attendance" />
           <SidebarLink to="/issues"          icon="exclamation-circle" label="Issues" />
         </template>
         <template v-else-if="auth.isTeleCaller">

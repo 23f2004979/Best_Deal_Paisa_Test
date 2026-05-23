@@ -15,16 +15,18 @@ const IssuesView           = () => import('../views/shared/IssuesView.vue')
 const UsersView            = () => import('../views/admin/UsersView.vue')
 const FilesView            = () => import('../views/admin/FilesView.vue')
 const AdminRevenue         = () => import('../views/admin/AdminRevenue.vue')
+const TeamAttendance       = () => import('../views/shared/TeamAttendanceView.vue')
 
 const routes = [
   { path: '/',        redirect: '/login' },
   { path: '/login',   component: LoginView, meta: { public: true } },
 
   // Shared routes
-  { path: '/dashboard',  component: Dashboard },
-  { path: '/attendance', component: AttendanceCalendar },
-  { path: '/reports',    component: ReportsList },
-  { path: '/issues',     component: IssuesView },
+  { path: '/dashboard',       component: Dashboard },
+  { path: '/attendance',      component: AttendanceCalendar },
+  { path: '/reports',         component: ReportsList },
+  { path: '/issues',          component: IssuesView },
+  { path: '/team-attendance', component: TeamAttendance, meta: { roles: ['ADMIN', 'MASTER_ADMIN', 'MANAGER', 'TEAM_LEAD'] } },
 
   // Admin routes
   { path: '/admin/employees', component: AdminEmployeeManagement, meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
