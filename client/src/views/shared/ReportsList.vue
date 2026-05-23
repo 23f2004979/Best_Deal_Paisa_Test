@@ -123,7 +123,7 @@
                 </td>
                 <td class="text-end">
                   <span v-if="report.attachmentUrl" class="me-2">
-                    <a :href="report.attachmentUrl" target="_blank" class="btn btn-sm btn-outline-info" title="Preview/Download Attachment">
+                    <a :href="getFileUrl(report.attachmentUrl)" target="_blank" class="btn btn-sm btn-outline-info" title="Preview/Download Attachment">
                       <i class="bi bi-paperclip"></i> File
                     </a>
                   </span>
@@ -323,10 +323,10 @@
                   <span class="fw-600">{{ selectedReport.attachmentUrl.split('/').pop() }}</span>
                 </div>
                 <div>
-                  <a :href="selectedReport.attachmentUrl" target="_blank" class="btn btn-sm btn-primary me-2">
+                  <a :href="getFileUrl(selectedReport.attachmentUrl)" target="_blank" class="btn btn-sm btn-primary me-2">
                     <i class="bi bi-eye me-1"></i> Preview
                   </a>
-                  <a :href="selectedReport.attachmentUrl" :download="selectedReport.attachmentUrl.split('/').pop()" class="btn btn-sm btn-outline-primary">
+                  <a :href="getFileUrl(selectedReport.attachmentUrl)" :download="selectedReport.attachmentUrl.split('/').pop()" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-download me-1"></i> Download
                   </a>
                 </div>
@@ -440,6 +440,17 @@ import { useRoute } from 'vue-router';
 import api from '../../api/axios';
 
 const route = useRoute();
+
+const getFileUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const apiBaseURL = api.defaults.baseURL || '';
+  const serverURL = apiBaseURL.replace(/\/api$/, '');
+  if (!serverURL || serverURL.startsWith('/')) {
+    return `${window.location.origin}${url}`;
+  }
+  return `${serverURL}${url}`;
+};
 
 const reports = ref([]);
 const userRole = ref('');
@@ -730,15 +741,27 @@ const editReport = (report) => {
   showModal.value = true;
 };
 
-const onFileChange = (e) => {
+const onFileChange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   
+  const formData = new FormData();
+  formData.append('file', file);
+  
   uploadingFile.value = true;
-  setTimeout(() => {
+  try {
+    const res = await api.post('/shared/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    form.value.attachmentUrl = res.data.fileUrl;
+  } catch (err) {
+    console.error('Upload failed:', err);
+    alert('Failed to upload file. Please try again.');
+  } finally {
     uploadingFile.value = false;
-    form.value.attachmentUrl = `/uploads/${encodeURIComponent(file.name)}`;
-  }, 1000);
+  }
 };
 
 const saveReport = async () => {

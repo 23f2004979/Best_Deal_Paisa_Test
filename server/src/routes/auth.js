@@ -89,7 +89,10 @@ router.post('/register', verifyToken, verifyRole(['ADMIN']), async (req, res) =>
     if (latestUser && latestUser.empId) {
       const parts = latestUser.empId.split('-');
       if (parts.length > 1) {
-        nextNum = parseInt(parts[1]) + 1;
+        const parsedNum = parseInt(parts[1], 10);
+        if (!isNaN(parsedNum)) {
+          nextNum = parsedNum + 1;
+        }
       }
     }
     

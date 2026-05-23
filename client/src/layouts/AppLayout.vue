@@ -6,7 +6,7 @@
         <button class="btn btn-sm text-light border-0 p-0" type="button" @click="toggleSidebar" aria-label="Toggle Sidebar">
           <i class="bi bi-list fs-4"></i>
         </button>
-        <div class="bg-white px-2 py-1 rounded d-flex align-items-center justify-content-center" v-if="!isSidebarOpen || isMobile" style="height: 32px;">
+        <div class="bg-white px-2 py-1 rounded d-flex align-items-center justify-content-center" v-if="!isSidebarOpen || isMobile" style="height: 32px; cursor: pointer;" @click="router.push('/dashboard')">
           <img src="/logo.png" alt="Best Deal Paisa Logo" style="height: 100%; object-fit: contain;" />
         </div>
       </div>
@@ -22,7 +22,7 @@
     <aside class="emp-sidebar" id="empSidebar" tabindex="-1">
       <div class="sidebar-brand">
         <div class="d-flex align-items-center justify-content-between w-100">
-          <div class="bg-white px-3 py-2 rounded d-flex align-items-center justify-content-center" style="height: 48px; width: 175px;">
+          <div class="bg-white px-3 py-2 rounded d-flex align-items-center justify-content-center" style="height: 48px; width: 175px; cursor: pointer;" @click="router.push('/dashboard')">
             <img src="/logo.png" alt="Best Deal Paisa Logo" style="height: 100%; width: 100%; object-fit: contain;" />
           </div>
           <button class="btn-close btn-close-white d-lg-none ms-auto"

@@ -26,7 +26,7 @@ exports.getAttendance = async (req, res) => {
         presentDays,
         earnedSalary,
         baseSalary: user.baseSalary,
-        dailyWage: user.dailyWage > 0 ? user.dailyWage : Math.round(user.baseSalary / 30)
+        dailyWage: user.dailyWage > 0 ? user.dailyWage : Math.round(user.baseSalary / new Date(y, m, 0).getDate())
       }
     });
   } catch (err) {
@@ -38,14 +38,16 @@ exports.getAttendance = async (req, res) => {
 exports.markAttendance = async (req, res) => {
   try {
     const { userId, date, status } = req.body; // status: PRESENT, ABSENT, LEAVE
-    const d = new Date(date);
+    const parsedDate = new Date(date);
+    const d = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
     const m = d.getMonth() + 1;
     const y = d.getFullYear();
 
     const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
     if (!user) return res.status(404).json({ message: 'User not found' });
     
-    const activeDailyWage = user.dailyWage > 0 ? user.dailyWage : Math.round(user.baseSalary / 30);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const activeDailyWage = user.dailyWage > 0 ? user.dailyWage : Math.round(user.baseSalary / daysInMonth);
 
     const attendance = await prisma.attendance.upsert({
       where: {

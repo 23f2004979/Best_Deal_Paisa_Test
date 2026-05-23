@@ -99,7 +99,10 @@ exports.updateUserProfile = async (req, res) => {
         if (latestUser && latestUser.empId) {
           const parts = latestUser.empId.split('-');
           if (parts.length > 1) {
-            nextNum = parseInt(parts[1]) + 1;
+            const parsedNum = parseInt(parts[1], 10);
+            if (!isNaN(parsedNum)) {
+              nextNum = parsedNum + 1;
+            }
           }
         }
         updateData.empId = `${prefix}-${nextNum}`;
@@ -247,7 +250,7 @@ exports.getSubordinatesAttendance = async (req, res) => {
       const halfCount = u.attendance.filter(a => a.status === 'HALF_DAY').length;
       const absentCount = u.attendance.filter(a => a.status === 'ABSENT').length;
       const leaveCount = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / 30);
+      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / daysInMonth);
       const presentDays = presentCount + (halfCount * 0.5);
       const absentDays = absentCount + (halfCount * 0.5);
       const leaveDays = leaveCount;
@@ -284,7 +287,10 @@ exports.markSubordinateAttendance = async (req, res) => {
       return res.status(403).json({ message: 'You can only mark attendance for employees (Managers, Team Leads, or Telecallers).' });
     }
 
-    const activeDailyWage = targetUser.dailyWage > 0 ? targetUser.dailyWage : Math.round(targetUser.baseSalary / 30);
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const activeDailyWage = targetUser.dailyWage > 0 ? targetUser.dailyWage : Math.round(targetUser.baseSalary / daysInMonth);
 
     const attendance = await prisma.attendance.upsert({
       where: {
@@ -331,7 +337,7 @@ exports.getAnalytics = async (req, res) => {
       const halfCount = u.attendance.filter(a => a.status === 'HALF_DAY').length;
       const absentCount = u.attendance.filter(a => a.status === 'ABSENT').length;
       const leaveCount = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / 30);
+      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / daysInMonth);
       const presentDays = presentCount + (halfCount * 0.5);
       const absentDays = absentCount + (halfCount * 0.5);
       const leaveDays = leaveCount;

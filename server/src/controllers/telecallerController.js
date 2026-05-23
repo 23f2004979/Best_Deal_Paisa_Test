@@ -94,12 +94,13 @@ exports.markAttendance = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    const activeDailyWage = user.dailyWage > 0 ? user.dailyWage : Math.round(user.baseSalary / 30);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const activeDailyWage = user.dailyWage > 0 ? user.dailyWage : Math.round(user.baseSalary / daysInMonth);
 
     const attendance = await prisma.attendance.create({
       data: {
         userId: req.user.id,
-        date: now,
+        date: today,
         status: 'PRESENT',
         dailyWage: activeDailyWage,
         month,

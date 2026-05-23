@@ -4,6 +4,34 @@ const { verifyToken, verifyRole } = require('../middleware/auth');
 const attendanceController = require('../controllers/attendanceController');
 const salaryController = require('../controllers/salaryController');
 const reportController = require('../controllers/reportController');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads folder exists in project root
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    const cleanBaseName = baseName.replace(/[^a-zA-Z0-9]/g, '_');
+    cb(null, `${cleanBaseName}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // Attendance Routes
 router.get('/attendance', verifyToken, attendanceController.getAttendance);
@@ -19,6 +47,20 @@ router.put('/reports/:id', verifyToken, verifyRole(['TELE_CALLER']), reportContr
 router.get('/reports', verifyToken, reportController.getReports);
 router.post('/reports/:id/approve', verifyToken, verifyRole(['TEAM_LEAD', 'MANAGER', 'ADMIN']), reportController.approveReport);
 router.post('/reports/bulk-share', verifyToken, reportController.bulkShareReports);
+
+// File Upload Route
+router.post('/upload', verifyToken, upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded.' });
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({ message: 'File uploaded successfully.', fileUrl });
+  } catch (err) {
+    console.error('File upload error:', err);
+    res.status(500).json({ message: 'File upload failed.' });
+  }
+});
 
 // Get list of active users to share files with (excluding current user)
 router.get('/users', verifyToken, async (req, res) => {
