@@ -18,5 +18,7 @@ router.get('/reports/download',   requireRole('MASTER_ADMIN'), ctrl.downloadRepo
 router.get('/subordinate-attendance', ctrl.getSubordinatesAttendance);
 router.post('/subordinate-attendance/:id', ctrl.markSubordinateAttendance);
 router.get('/analytics',              ctrl.getAnalytics);
+router.get('/advanced-analytics',     ctrl.getAdvancedAnalytics);
+router.get('/revenue-report',         ctrl.getRevenueReport);
 
 module.exports = router;

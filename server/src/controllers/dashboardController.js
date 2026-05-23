@@ -13,7 +13,13 @@ exports.getDashboard = async (req, res) => {
       // Calculate monthly salary expense
       const month = new Date().getMonth() + 1;
       const year = new Date().getFullYear();
-      const attendance = await prisma.attendance.findMany({ where: { month, year, status: 'PRESENT' } });
+      const attendance = await prisma.attendance.findMany({
+        where: {
+          month,
+          year,
+          status: { in: ['PRESENT', 'HALF_DAY'] }
+        }
+      });
       const salaryExpense = attendance.reduce((sum, a) => sum + a.dailyWage, 0);
 
       data = { totalEmployees, pendingApprovals, approvedReports, salaryExpense };
@@ -23,8 +29,10 @@ exports.getDashboard = async (req, res) => {
       const year = new Date().getFullYear();
       
       const attendance = await prisma.attendance.findMany({ where: { userId: req.user.id, month, year } });
-      const presentDays = attendance.filter(a => a.status === 'PRESENT').length;
-      const monthlySalary = attendance.reduce((sum, a) => sum + (a.status === 'PRESENT' ? a.dailyWage : 0), 0);
+      const presentCount = attendance.filter(a => a.status === 'PRESENT').length;
+      const halfCount = attendance.filter(a => a.status === 'HALF_DAY').length;
+      const presentDays = presentCount + (halfCount * 0.5);
+      const monthlySalary = attendance.reduce((sum, a) => sum + ((a.status === 'PRESENT' || a.status === 'HALF_DAY') ? a.dailyWage : 0), 0);
       
       const reportsCreated = await prisma.file.count({ where: { createdById: req.user.id } });
       const approvedReports = await prisma.file.count({ where: { createdById: req.user.id, status: 'APPROVED' } });

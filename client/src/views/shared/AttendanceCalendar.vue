@@ -61,7 +61,7 @@
           >
             <div class="fw-bold fs-5">{{ day.dayNum }}</div>
             <div class="small">{{ day.status || 'UNMARKED' }}</div>
-            <div class="small" v-if="day.status === 'PRESENT'">+₹{{ day.dailyWage }}</div>
+            <div class="small" v-if="day.status === 'PRESENT' || day.status === 'HALF_DAY'">+₹{{ day.dailyWage }}</div>
           </div>
         </div>
       </div>
@@ -116,6 +116,7 @@ const loadData = async () => {
 
 const getStyle = (status) => {
   if (status === 'PRESENT') return 'bg-success text-white';
+  if (status === 'HALF_DAY') return 'bg-info text-white';
   if (status === 'ABSENT') return 'bg-danger text-white';
   if (status === 'LEAVE') return 'bg-warning text-dark';
   return 'bg-light';

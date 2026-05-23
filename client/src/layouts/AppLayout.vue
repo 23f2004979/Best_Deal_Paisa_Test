@@ -6,7 +6,9 @@
         <button class="btn btn-sm text-light border-0 p-0" type="button" @click="toggleSidebar" aria-label="Toggle Sidebar">
           <i class="bi bi-list fs-4"></i>
         </button>
-        <span class="brand" v-if="!isSidebarOpen || isMobile">BDP EMP</span>
+        <div class="bg-white px-2 py-1 rounded d-flex align-items-center justify-content-center" v-if="!isSidebarOpen || isMobile" style="height: 32px;">
+          <img src="/logo.png" alt="Best Deal Paisa Logo" style="height: 100%; object-fit: contain;" />
+        </div>
       </div>
       <div class="d-flex align-items-center gap-3">
         <span class="text-white-50 small d-none d-sm-inline">Welcome, {{ auth.user?.name }}</span>
@@ -19,10 +21,13 @@
     <!-- Sidebar -->
     <aside class="emp-sidebar" id="empSidebar" tabindex="-1">
       <div class="sidebar-brand">
-        <span class="brand-text">BDP EMP</span>
-        <small>Best Deal Paisa</small>
-        <button class="btn-close btn-close-white d-lg-none ms-auto"
-                @click="isSidebarOpen = false"></button>
+        <div class="d-flex align-items-center justify-content-between w-100">
+          <div class="bg-white px-3 py-2 rounded d-flex align-items-center justify-content-center" style="height: 48px; width: 175px;">
+            <img src="/logo.png" alt="Best Deal Paisa Logo" style="height: 100%; width: 100%; object-fit: contain;" />
+          </div>
+          <button class="btn-close btn-close-white d-lg-none ms-auto"
+                  @click="isSidebarOpen = false"></button>
+        </div>
       </div>
 
       <nav class="sidebar-nav flex-grow-1">
@@ -30,6 +35,7 @@
           <SidebarLink to="/dashboard"       icon="speedometer2"  label="Dashboard" />
           <SidebarLink to="/admin/employees" icon="people"        label="Employees" />
           <SidebarLink to="/reports"         icon="bar-chart-line" label="Reports" />
+          <SidebarLink to="/admin/revenue"   icon="currency-rupee" label="Revenue" />
           <SidebarLink to="/issues"          icon="exclamation-circle" label="Issues" />
         </template>
         <template v-else-if="auth.isManager">
@@ -60,6 +66,10 @@
         <button class="btn btn-sm btn-outline-light w-100 mt-2" @click="handleLogout">
           <i class="bi bi-box-arrow-right me-1"></i>Logout
         </button>
+        <div class="d-flex align-items-center justify-content-center gap-1 mt-3 pt-2 text-white-50 border-top border-white-10" style="font-size: 0.7rem; border-color: rgba(255,255,255,0.05) !important;">
+          <img src="/favicon.png" alt="Logo" style="height: 12px; width: 12px; opacity: 0.6; object-fit: contain;" />
+          <span>© 2026 Best Deal Paisa</span>
+        </div>
       </div>
     </aside>
 

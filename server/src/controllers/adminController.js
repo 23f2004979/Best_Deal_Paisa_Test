@@ -236,23 +236,28 @@ exports.getSubordinatesAttendance = async (req, res) => {
     const daysInMonth = new Date(year, month, 0).getDate();
     
     const users = await prisma.user.findMany({
-      where: { role: 'MANAGER', status: 'ACTIVE' },
+      where: { role: { notIn: ['ADMIN', 'MASTER_ADMIN'] }, status: 'ACTIVE' },
       select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
     const now = new Date();
+    const todayStr = now.toLocaleDateString('sv-SE');
     const data = users.map(u => {
-      const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
-      const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
-      const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round(u.dailyWage * presentDays);
+      const presentCount = u.attendance.filter(a => a.status === 'PRESENT').length;
+      const halfCount = u.attendance.filter(a => a.status === 'HALF_DAY').length;
+      const absentCount = u.attendance.filter(a => a.status === 'ABSENT').length;
+      const leaveCount = u.attendance.filter(a => a.status === 'LEAVE').length;
+      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / 30);
+      const presentDays = presentCount + (halfCount * 0.5);
+      const absentDays = absentCount + (halfCount * 0.5);
+      const leaveDays = leaveCount;
+      const projectedSalary = Math.round(effectiveDailyWage * presentDays);
       const todayRecord = u.attendance.find(a => {
-        const d = new Date(a.date);
-        return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return new Date(a.date).toLocaleDateString('sv-SE') === todayStr;
       });
       return {
         id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary, dailyWage: u.dailyWage,
-        presentDays, absentDays, leaveDays, projectedSalary,
+        presentDays, absentDays, leaveDays, halfDays: halfCount, projectedSalary,
         isMarkedToday: !!todayRecord,
         todayStatus: todayRecord ? todayRecord.status : null
       };
@@ -273,10 +278,10 @@ exports.markSubordinateAttendance = async (req, res) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Verify that the target user is a MANAGER
+    // Verify that the target user is an employee (not an administrator)
     const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser || targetUser.role !== 'MANAGER') {
-      return res.status(403).json({ message: 'You can only mark attendance for Company Managers.' });
+    if (!targetUser || targetUser.role === 'ADMIN' || targetUser.role === 'MASTER_ADMIN') {
+      return res.status(403).json({ message: 'You can only mark attendance for employees (Managers, Team Leads, or Telecallers).' });
     }
 
     const activeDailyWage = targetUser.dailyWage > 0 ? targetUser.dailyWage : Math.round(targetUser.baseSalary / 30);
@@ -287,13 +292,13 @@ exports.markSubordinateAttendance = async (req, res) => {
       },
       update: {
         status,
-        dailyWage: status === 'PRESENT' ? activeDailyWage : 0
+        dailyWage: status === 'PRESENT' ? activeDailyWage : (status === 'HALF_DAY' ? Math.round(activeDailyWage / 2) : 0)
       },
       create: {
         userId,
         date: today,
         status,
-        dailyWage: status === 'PRESENT' ? activeDailyWage : 0,
+        dailyWage: status === 'PRESENT' ? activeDailyWage : (status === 'HALF_DAY' ? Math.round(activeDailyWage / 2) : 0),
         month: now.getMonth() + 1,
         year: now.getFullYear()
       }
@@ -322,13 +327,18 @@ exports.getAnalytics = async (req, res) => {
     });
 
     const attendanceData = users.map(u => {
-      const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
-      const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
-      const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round(u.dailyWage * presentDays);
+      const presentCount = u.attendance.filter(a => a.status === 'PRESENT').length;
+      const halfCount = u.attendance.filter(a => a.status === 'HALF_DAY').length;
+      const absentCount = u.attendance.filter(a => a.status === 'ABSENT').length;
+      const leaveCount = u.attendance.filter(a => a.status === 'LEAVE').length;
+      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / 30);
+      const presentDays = presentCount + (halfCount * 0.5);
+      const absentDays = absentCount + (halfCount * 0.5);
+      const leaveDays = leaveCount;
+      const projectedSalary = Math.round(effectiveDailyWage * presentDays);
       return {
         id: u.id, empId: u.empId, name: u.name, role: u.role,
-        presentDays, absentDays, leaveDays, totalDays: daysInMonth, projectedSalary
+        presentDays, absentDays, leaveDays, halfDays: halfCount, totalDays: daysInMonth, projectedSalary
       };
     });
 
@@ -353,10 +363,211 @@ exports.getAnalytics = async (req, res) => {
       orderBy: { updatedAt: 'desc' },
       take: 20
     });
-
     res.json({ attendanceData, recentActivity, activeFiles, month, year });
   } catch (err) {
     console.error('Admin getAnalytics error:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+// GET /api/admin/advanced-analytics
+exports.getAdvancedAnalytics = async (req, res) => {
+  try {
+    const month = Number(req.query.month) || new Date().getMonth() + 1;
+    const year  = Number(req.query.year)  || new Date().getFullYear();
+
+    // 1. Performance Leaderboard (Top 5 Telecallers by Approved Loans)
+    const leaderboard = await prisma.loanDisbursed.groupBy({
+      by: ['teleCallerId'],
+      where: { 
+        status: 'APPROVED',
+        month,
+        year
+      },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: 'desc' } },
+      take: 5
+    });
+
+    const leaderboardDetails = await Promise.all(
+      leaderboard.map(async item => {
+        const user = await prisma.user.findUnique({
+          where: { id: item.teleCallerId },
+          select: { name: true, empId: true }
+        });
+        return {
+          id: item.teleCallerId,
+          name: user?.name || 'Unknown User',
+          empId: user?.empId || 'N/A',
+          totalDisbursed: item._sum.amount || 0
+        };
+      })
+    );
+
+    // 2. Disbursement Trends / Loan Distribution by Category (from Approved Files)
+    const approvedFiles = await prisma.file.findMany({
+      where: { 
+        status: 'APPROVED',
+        createdAt: {
+          gte: new Date(year, month - 1, 1),
+          lt: new Date(year, month, 1)
+        }
+      },
+      select: { customerDetails: true }
+    });
+
+    const categories = {};
+    let totalValue = 0;
+    approvedFiles.forEach(f => {
+      try {
+        const details = JSON.parse(f.customerDetails);
+        const type = details.loanType || 'Other';
+        const amount = Number(details.loanAmount) || 0;
+        categories[type] = (categories[type] || 0) + amount;
+        totalValue += amount;
+      } catch (e) {
+        // Skip invalid JSON
+      }
+    });
+
+    const trends = Object.keys(categories).map(type => {
+      const amount = categories[type];
+      const percentage = totalValue > 0 ? Math.round((amount / totalValue) * 100) : 0;
+      return { type, amount, percentage };
+    }).sort((a, b) => b.amount - a.amount);
+
+    // 3. Approval response speeds in hours
+    const logs = await prisma.approvalLog.findMany({
+      include: {
+        file: { select: { createdAt: true } },
+        user: { select: { role: true } }
+      }
+    });
+
+    let tlSum = 0, tlCount = 0;
+    let mgrSum = 0, mgrCount = 0;
+
+    logs.forEach(log => {
+      const diffMs = log.createdAt.getTime() - log.file.createdAt.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      if (log.user.role === 'TEAM_LEAD') {
+        tlSum += diffHours;
+        tlCount++;
+      } else if (log.user.role === 'MANAGER') {
+        mgrSum += diffHours;
+        mgrCount++;
+      }
+    });
+
+    const avgTLHours = tlCount > 0 ? Math.round((tlSum / tlCount) * 10) / 10 : 0;
+    const avgMgrHours = mgrCount > 0 ? Math.round((mgrSum / mgrCount) * 10) / 10 : 0;
+
+    res.json({
+      leaderboard: leaderboardDetails,
+      trends,
+      avgTLHours,
+      avgMgrHours,
+      month,
+      year
+    });
+  } catch (err) {
+    console.error('getAdvancedAnalytics error:', err);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+// GET /api/admin/revenue-report
+exports.getRevenueReport = async (req, res) => {
+  try {
+    const { date, month, year } = req.query;
+    const where = { status: 'APPROVED' };
+
+    if (date) {
+      const d = new Date(date);
+      const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      where.disbursedDate = {
+        gte: startOfDay,
+        lt: endOfDay
+      };
+    } else if (month && year) {
+      where.month = Number(month);
+      where.year = Number(year);
+    } else if (year) {
+      where.year = Number(year);
+    } else {
+      // Default to current month and year
+      const now = new Date();
+      where.month = now.getMonth() + 1;
+      where.year = now.getFullYear();
+    }
+
+    // Fetch all approved disbursements with telecaller and approver details
+    const loans = await prisma.loanDisbursed.findMany({
+      where,
+      include: {
+        teleCaller: {
+          select: {
+            id: true,
+            name: true,
+            empId: true,
+            role: true
+          }
+        },
+        approvedBy: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: { disbursedDate: 'desc' }
+    });
+
+    // Group by employee to calculate summary stats
+    const employeeSummary = {};
+
+    loans.forEach(loan => {
+      const tc = loan.teleCaller;
+      if (!tc) return;
+
+      if (!employeeSummary[tc.id]) {
+        employeeSummary[tc.id] = {
+          id: tc.id,
+          name: tc.name,
+          empId: tc.empId,
+          role: tc.role,
+          totalRevenue: 0,
+          loanCount: 0,
+          loans: []
+        };
+      }
+
+      employeeSummary[tc.id].totalRevenue += loan.amount;
+      employeeSummary[tc.id].loanCount += 1;
+      employeeSummary[tc.id].loans.push({
+        id: loan.id,
+        amount: loan.amount,
+        disbursedDate: loan.disbursedDate,
+        dateStr: new Date(loan.disbursedDate).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }),
+        approvedBy: loan.approvedBy?.name || 'Admin'
+      });
+    });
+
+    const summaryList = Object.values(employeeSummary).sort((a, b) => b.totalRevenue - a.totalRevenue);
+    const overallRevenue = loans.reduce((sum, l) => sum + l.amount, 0);
+
+    res.json({
+      summary: summaryList,
+      totalRevenue: overallRevenue,
+      totalLoans: loans.length,
+      filter: { date, month, year }
+    });
+  } catch (err) {
+    console.error('getRevenueReport error:', err);
     res.status(500).json({ message: 'Server error.' });
   }
 };

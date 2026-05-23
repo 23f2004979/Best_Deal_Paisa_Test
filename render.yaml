@@ -2,10 +2,7 @@ services:
   - type: web
     name: emp-portal
     env: node
-    buildCommand: >
-      npm install &&
-      cd client && npm install && npm run build && cd .. &&
-      npx prisma migrate deploy
+    buildCommand: npm install && npm run build && npx prisma migrate deploy
     startCommand: node server/src/server.js
     envVars:
       - key: NODE_ENV

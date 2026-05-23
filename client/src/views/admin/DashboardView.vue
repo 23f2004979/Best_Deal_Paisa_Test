@@ -5,34 +5,14 @@
     <template v-else>
       <!-- Users Overview Cards -->
       <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-4">
           <StatCard icon="briefcase" label="Managers" :value="stats.managers" color="#3b82f6" />
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-4">
           <StatCard icon="people" label="Team Leads" :value="stats.teamLeads" color="#10b981" />
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col-12 col-sm-4">
           <StatCard icon="headset" label="Tele Callers" :value="stats.teleCallers" color="#f97316" />
-        </div>
-        <div class="col-6 col-lg-3">
-          <StatCard icon="hourglass-split" label="Pending Approvals"
-                    :value="stats.pendingUsers + stats.pendingFiles" color="#ef4444" />
-        </div>
-      </div>
-
-      <!-- Reports Overview Cards -->
-      <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-          <StatCard icon="folder" label="Total Reports" :value="reportsStats.total" color="#6366f1" />
-        </div>
-        <div class="col-6 col-lg-3">
-          <StatCard icon="folder-check" label="Approved Reports" :value="reportsStats.approved" color="#22c55e" />
-        </div>
-        <div class="col-6 col-lg-3">
-          <StatCard icon="folder-symlink" label="Pending Reports" :value="reportsStats.pending" color="#eab308" />
-        </div>
-        <div class="col-6 col-lg-3">
-          <StatCard icon="folder-x" label="Rejected Reports" :value="reportsStats.rejected" color="#ef4444" />
         </div>
       </div>
 
@@ -63,10 +43,10 @@
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
           <h6 class="fw-600 mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Attendance Analytics — Managers & Team Leads</h6>
           <div class="d-flex gap-2">
-            <select v-model="analyticsMonth" class="form-select form-select-sm" style="width: auto;" @change="loadAnalytics">
+            <select v-model="analyticsMonth" class="form-select form-select-sm" style="width: auto;" @change="onPeriodChange">
               <option v-for="m in 12" :key="m" :value="m">{{ new Date(2000, m-1).toLocaleString('default', { month: 'long' }) }}</option>
             </select>
-            <input type="number" v-model="analyticsYear" class="form-control form-control-sm" style="width: 100px;" @change="loadAnalytics" />
+            <input type="number" v-model="analyticsYear" class="form-control form-control-sm" style="width: 100px;" @change="onPeriodChange" />
           </div>
         </div>
         <div class="card-body p-0">
@@ -103,47 +83,6 @@
         </div>
       </div>
 
-      <!-- Operational Tracking: Recent File Activity -->
-      <div class="card border-0 shadow-sm mt-4">
-        <div class="card-header bg-light">
-          <h6 class="fw-600 mb-0"><i class="bi bi-activity me-2 text-info"></i>Operational Tracking — Recent File Activity</h6>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Report</th>
-                  <th>Actioned By</th>
-                  <th>Action</th>
-                  <th>Comments</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!analytics.recentActivity?.length">
-                  <td colspan="5" class="text-center py-4 text-muted">No recent activity.</td>
-                </tr>
-                <tr v-for="log in analytics.recentActivity" :key="log.id">
-                  <td>
-                    <span class="fw-600 text-primary">{{ log.file?.reportNumber }}</span>
-                    <small class="text-muted d-block">{{ log.file?.title }}</small>
-                  </td>
-                  <td>
-                    <span class="fw-500">{{ log.user?.name }}</span>
-                    <small class="text-muted d-block">{{ formatRole(log.user?.role) }}</small>
-                  </td>
-                  <td>
-                    <span class="badge" :class="actionBadge(log.action)">{{ log.action }}</span>
-                  </td>
-                  <td class="text-muted" style="max-width: 200px;">{{ log.comments || '—' }}</td>
-                  <td class="small text-muted">{{ new Date(log.createdAt).toLocaleString('en-IN') }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
 
       <!-- Active Files Being Worked On -->
       <div class="card border-0 shadow-sm mt-4">
@@ -239,63 +178,108 @@
         </div>
       </div>
 
-      <!-- Global Report Search -->
-      <div class="card border-0 shadow-sm mt-4 mb-4">
-        <div class="card-header bg-light">
-          <h6 class="fw-600 mb-0"><i class="bi bi-search me-2 text-primary"></i>Global Report Search</h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-3 mb-3">
-            <div class="col-md-8">
-              <input v-model="globalSearchQuery" type="text" class="form-control" placeholder="Search by customer name, phone, email, creator name, ID, or report number..." />
+      <!-- Advanced Analytics: Leaderboard & Disbursement Trends -->
+      <div class="row g-3 mt-2">
+        <!-- Performance Leaderboard (Top 5 Telecallers) -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <h6 class="fw-600 mb-0"><i class="bi bi-trophy text-warning me-2"></i>Performance Leaderboard — Top Telecallers</h6>
+              <span class="badge bg-primary-subtle text-primary">This Month</span>
             </div>
-            <div class="col-md-4">
-              <select v-model="globalSearchStatus" class="form-select">
-                <option value="">All Statuses</option>
-                <option value="DRAFT">Draft</option>
-                <option value="PENDING_APPROVAL">Pending Approval</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CHANGES_REQUESTED">Changes Requested</option>
-              </select>
+            <div class="card-body">
+              <LoadingSpinner v-if="advLoading" />
+              <div v-else-if="!advAnalytics.leaderboard || !advAnalytics.leaderboard.length" class="text-center py-4 text-muted">
+                No approved disbursements recorded yet.
+              </div>
+              <div v-else class="d-flex flex-column gap-3">
+                <div v-for="(tc, idx) in advAnalytics.leaderboard" :key="tc.id" class="d-flex align-items-center gap-3">
+                  <div class="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white shadow-sm"
+                       :style="{
+                         width: '32px', height: '32px',
+                         background: idx === 0 ? 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)' :
+                                     idx === 1 ? 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)' :
+                                     idx === 2 ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' :
+                                     'linear-gradient(135deg, #93c5fd 0%, #2563eb 100%)'
+                       }"
+                       style="font-size: 0.85rem;"
+                  >
+                    {{ idx + 1 }}
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ tc.name }}</div>
+                    <small class="text-muted d-block" style="font-size: 0.75rem;">ID: {{ tc.empId }}</small>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-bold text-success" style="font-size: 0.9rem;">₹{{ tc.totalDisbursed.toLocaleString('en-IN') }}</div>
+                    <small class="text-muted" style="font-size: 0.75rem;">Disbursed</small>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Report No.</th>
-                  <th>Title</th>
-                  <th>Customer Name</th>
-                  <th>Created By</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!searchedReports.length">
-                  <td colspan="6" class="text-center py-4 text-muted">No reports matching search query.</td>
-                </tr>
-                <tr v-for="report in searchedReports" :key="report.id">
-                  <td>
-                    <router-link :to="'/reports?search=' + report.reportNumber" class="fw-600 text-primary">{{ report.reportNumber }}</router-link>
-                  </td>
-                  <td>{{ report.title }}</td>
-                  <td>{{ getCustomerName(report) }}</td>
-                  <td>
-                    <span>{{ report.createdBy?.name }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.75rem;">{{ formatRole(report.createdBy?.role) }}</small>
-                  </td>
-                  <td>
-                    <span class="badge" :class="statusBadge(report.status)">{{ report.status?.replace('_', ' ') }}</span>
-                  </td>
-                  <td class="small text-muted">{{ new Date(report.createdAt).toLocaleDateString('en-IN') }}</td>
-                </tr>
-              </tbody>
-            </table>
+        </div>
+
+        <!-- Disbursement Trends by Category -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light">
+              <h6 class="fw-600 mb-0"><i class="bi bi-pie-chart text-success me-2"></i>Loan Distribution & Trends</h6>
+            </div>
+            <div class="card-body">
+              <LoadingSpinner v-if="advLoading" />
+              <div v-else-if="!advAnalytics.trends || !advAnalytics.trends.length" class="text-center py-4 text-muted">
+                No approved leads available for analysis.
+              </div>
+              <div v-else class="d-flex flex-column gap-3">
+                <div v-for="item in advAnalytics.trends" :key="item.type">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-500" style="font-size: 0.85rem;">{{ item.type }}</span>
+                    <span class="fw-semibold text-dark" style="font-size: 0.85rem;">₹{{ item.amount.toLocaleString('en-IN') }} ({{ item.percentage }}%)</span>
+                  </div>
+                  <div class="progress" style="height: 10px; background-color: #f1f5f9;">
+                    <div class="progress-bar" role="progressbar" 
+                         :style="{ width: item.percentage + '%', background: getTrendBarColor(item.type) }"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Advanced Analytics: Approval Speeds -->
+      <div class="row g-3 mt-2 mb-4">
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+              <h6 class="fw-600 mb-0"><i class="bi bi-clock-history text-info me-2"></i>Operational Review Response Speeds</h6>
+            </div>
+            <div class="card-body">
+              <LoadingSpinner v-if="advLoading" />
+              <div v-else class="row text-center g-3">
+                <div class="col-md-6 border-end">
+                  <div class="py-2">
+                    <i class="bi bi-lightning-charge-fill text-warning fs-3 mb-2 d-inline-block"></i>
+                    <h3 class="fw-bold text-dark mb-1">{{ advAnalytics.avgTLHours }} hrs</h3>
+                    <div class="text-muted" style="font-size: 0.8rem;">Average Team Lead Approval Speed</div>
+                    <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">Time from submission to Level 1 decision</small>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="py-2">
+                    <i class="bi bi-check-circle-fill text-success fs-3 mb-2 d-inline-block"></i>
+                    <h3 class="fw-bold text-dark mb-1">{{ advAnalytics.avgMgrHours }} hrs</h3>
+                    <div class="text-muted" style="font-size: 0.8rem;">Average Manager Approval Speed</div>
+                    <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">Time from submission to final decision</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </template>
   </div>
 </template>
@@ -316,8 +300,17 @@ const analyticsYear = ref(new Date().getFullYear())
 const analytics = ref({ attendanceData: [], recentActivity: [], activeFiles: [] })
 
 const allReports = ref([])
-const globalSearchQuery = ref('')
-const globalSearchStatus = ref('')
+
+const advLoading = ref(true)
+const advAnalytics = ref({ leaderboard: [], trends: [], avgTLHours: 0, avgMgrHours: 0 })
+
+const getTrendBarColor = (type) => {
+  const t = type.toLowerCase();
+  if (t.includes('home')) return 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+  if (t.includes('personal')) return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+  if (t.includes('business')) return 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)';
+  return 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+}
 
 const reportsStats = computed(() => {
   const total = allReports.value.length
@@ -326,41 +319,6 @@ const reportsStats = computed(() => {
   const rejected = allReports.value.filter(r => r.status === 'REJECTED').length
   return { total, approved, pending, rejected }
 })
-
-const searchedReports = computed(() => {
-  let list = allReports.value
-  if (globalSearchStatus.value) {
-    list = list.filter(r => r.status === globalSearchStatus.value)
-  }
-  if (globalSearchQuery.value) {
-    const q = globalSearchQuery.value.toLowerCase()
-    list = list.filter(r => {
-      const repNo = r.reportNumber?.toLowerCase() || ''
-      const title = r.title?.toLowerCase() || ''
-      const creator = r.createdBy?.name?.toLowerCase() || ''
-      const empId = r.createdBy?.empId?.toLowerCase() || ''
-      let details = {}
-      try {
-        details = r.customerDetails ? JSON.parse(r.customerDetails) : {}
-      } catch {}
-      const custName = details.name?.toLowerCase() || ''
-      const custPhone = details.phone?.toLowerCase() || ''
-      const custEmail = details.email?.toLowerCase() || ''
-      
-      return repNo.includes(q) || title.includes(q) || creator.includes(q) || empId.includes(q) || custName.includes(q) || custPhone.includes(q) || custEmail.includes(q)
-    })
-  }
-  return list.slice(0, 10)
-})
-
-const getCustomerName = (report) => {
-  try {
-    const details = report.customerDetails ? JSON.parse(report.customerDetails) : {}
-    return details.name || 'N/A'
-  } catch {
-    return 'N/A'
-  }
-}
 
 const statusBadge = (status) => {
   if (status === 'APPROVED') return 'bg-success text-white'
@@ -384,12 +342,6 @@ function formatRole(role) {
   return map[role] || role
 }
 
-function actionBadge(action) {
-  if (action === 'APPROVED') return 'bg-success'
-  if (action === 'REJECTED') return 'bg-danger'
-  if (action === 'REQUESTED_CHANGES') return 'bg-warning text-dark'
-  return 'bg-secondary'
-}
 
 async function loadAnalytics() {
   analyticsLoading.value = true
@@ -403,6 +355,23 @@ async function loadAnalytics() {
   }
 }
 
+async function loadAdvancedAnalytics() {
+  advLoading.value = true
+  try {
+    const { data } = await api.get(`/admin/advanced-analytics?month=${analyticsMonth.value}&year=${analyticsYear.value}`)
+    advAnalytics.value = data
+  } catch (e) {
+    console.error('Advanced analytics load error:', e)
+  } finally {
+    advLoading.value = false
+  }
+}
+
+function onPeriodChange() {
+  loadAnalytics();
+  loadAdvancedAnalytics();
+}
+
 onMounted(async () => {
   try {
     const { data } = await api.get('/admin/dashboard')
@@ -410,6 +379,7 @@ onMounted(async () => {
   } catch (e) { console.error(e) }
   finally { loading.value = false }
   loadAnalytics()
+  loadAdvancedAnalytics()
   loadAllReports()
 })
 </script>

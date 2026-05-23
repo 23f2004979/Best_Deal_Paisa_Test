@@ -14,6 +14,7 @@ const AdminEmployeeManagement = () => import('../views/admin/AdminEmployeeManage
 const IssuesView           = () => import('../views/shared/IssuesView.vue')
 const UsersView            = () => import('../views/admin/UsersView.vue')
 const FilesView            = () => import('../views/admin/FilesView.vue')
+const AdminRevenue         = () => import('../views/admin/AdminRevenue.vue')
 
 const routes = [
   { path: '/',        redirect: '/login' },
@@ -29,6 +30,7 @@ const routes = [
   { path: '/admin/employees', component: AdminEmployeeManagement, meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
   { path: '/admin/users',     component: UsersView,               meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
   { path: '/admin/files',     component: FilesView,               meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
+  { path: '/admin/revenue',   component: AdminRevenue,            meta: { roles: ['ADMIN', 'MASTER_ADMIN'] } },
 
   { path: '/403', component: Forbidden },
   { path: '/:pathMatch(.*)*', component: NotFound },

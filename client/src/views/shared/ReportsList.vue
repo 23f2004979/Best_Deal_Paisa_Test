@@ -92,8 +92,8 @@
             <tbody>
               <tr v-if="!filteredReports.length">
                 <td colspan="9" class="text-center py-5 text-muted">
-                  <i class="bi bi-folder2-open fs-2 mb-2 d-block"></i>
-                  No reports found.
+                  <img src="/favicon.png" alt="BDP Logo" style="opacity: 0.12; height: 48px; width: 48px; filter: grayscale(1);" class="mb-2" />
+                  <div class="fw-500">No reports found.</div>
                 </td>
               </tr>
               <tr v-for="report in filteredReports" :key="report.id">
@@ -909,9 +909,12 @@ const downloadPDF = (report) => {
     </head>
     <body>
       <div class="header">
-        <div>
-          <h1 class="header-title">Best Deal Paisa</h1>
-          <p style="font-size:12px; color:#ea580c; font-weight:600;">Customer Lead Verification Report</p>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <img src="/logo.png" alt="Best Deal Paisa Logo" style="height: 48px; object-fit: contain;" />
+          <div style="border-left: 1px solid #cbd5e1; padding-left: 15px;">
+            <h1 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0; line-height: 1.2;">Lead Verification Report</h1>
+            <p style="font-size: 11px; color: #ea580c; font-weight: 600; margin: 0;">Best Deal Paisa Portal</p>
+          </div>
         </div>
         <div class="header-meta">
           <p>Report No: <strong>${report.reportNumber}</strong></p>

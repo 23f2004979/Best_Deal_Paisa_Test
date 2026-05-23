@@ -83,18 +83,23 @@ exports.getSubordinatesAttendance = async (req, res) => {
     });
     
     const now = new Date();
+    const todayStr = now.toLocaleDateString('sv-SE');
     const data = users.map(u => {
-      const presentDays = u.attendance.filter(a => a.status === 'PRESENT').length;
-      const absentDays = u.attendance.filter(a => a.status === 'ABSENT').length;
-      const leaveDays = u.attendance.filter(a => a.status === 'LEAVE').length;
-      const projectedSalary = Math.round(u.dailyWage * presentDays);
+      const presentCount = u.attendance.filter(a => a.status === 'PRESENT').length;
+      const halfCount = u.attendance.filter(a => a.status === 'HALF_DAY').length;
+      const absentCount = u.attendance.filter(a => a.status === 'ABSENT').length;
+      const leaveCount = u.attendance.filter(a => a.status === 'LEAVE').length;
+      const effectiveDailyWage = u.dailyWage > 0 ? u.dailyWage : Math.round(u.baseSalary / 30);
+      const presentDays = presentCount + (halfCount * 0.5);
+      const absentDays = absentCount + (halfCount * 0.5);
+      const leaveDays = leaveCount;
+      const projectedSalary = Math.round(effectiveDailyWage * presentDays);
       const todayRecord = u.attendance.find(a => {
-        const d = new Date(a.date);
-        return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return new Date(a.date).toLocaleDateString('sv-SE') === todayStr;
       });
       return {
         id: u.id, name: u.name, role: u.role, baseSalary: u.baseSalary, dailyWage: u.dailyWage,
-        presentDays, absentDays, leaveDays, projectedSalary,
+        presentDays, absentDays, leaveDays, halfDays: halfCount, projectedSalary,
         isMarkedToday: !!todayRecord,
         todayStatus: todayRecord ? todayRecord.status : null
       };
@@ -129,13 +134,13 @@ exports.markSubordinateAttendance = async (req, res) => {
       },
       update: {
         status,
-        dailyWage: status === 'PRESENT' ? activeDailyWage : 0
+        dailyWage: status === 'PRESENT' ? activeDailyWage : (status === 'HALF_DAY' ? Math.round(activeDailyWage / 2) : 0)
       },
       create: {
         userId,
         date: today,
         status,
-        dailyWage: status === 'PRESENT' ? activeDailyWage : 0,
+        dailyWage: status === 'PRESENT' ? activeDailyWage : (status === 'HALF_DAY' ? Math.round(activeDailyWage / 2) : 0),
         month: now.getMonth() + 1,
         year: now.getFullYear()
       }

@@ -24,7 +24,10 @@
         </thead>
         <tbody>
           <tr v-if="!users.length">
-            <td colspan="8" class="text-center py-4 text-muted">No employees found.</td>
+            <td colspan="8" class="text-center py-4 text-muted">
+              <img src="/favicon.png" alt="BDP Logo" style="opacity: 0.12; height: 36px; width: 36px; filter: grayscale(1);" class="mb-2 d-block mx-auto" />
+              <span>No employees found.</span>
+            </td>
           </tr>
           <tr v-for="user in users" :key="user.id">
             <td class="px-3 fw-bold text-primary">{{ user.empId }}</td>

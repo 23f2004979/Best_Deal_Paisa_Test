@@ -15,8 +15,10 @@ exports.getAttendance = async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: uid } });
 
     // Calculate totals
-    const presentDays = attendance.filter(a => a.status === 'PRESENT').length;
-    const earnedSalary = attendance.reduce((sum, a) => sum + (a.status === 'PRESENT' ? a.dailyWage : 0), 0);
+    const presentCount = attendance.filter(a => a.status === 'PRESENT').length;
+    const halfCount = attendance.filter(a => a.status === 'HALF_DAY').length;
+    const presentDays = presentCount + (halfCount * 0.5);
+    const earnedSalary = attendance.reduce((sum, a) => sum + ((a.status === 'PRESENT' || a.status === 'HALF_DAY') ? a.dailyWage : 0), 0);
 
     res.json({
       attendance,
@@ -54,13 +56,13 @@ exports.markAttendance = async (req, res) => {
       },
       update: {
         status,
-        dailyWage: status === 'PRESENT' ? activeDailyWage : 0
+        dailyWage: status === 'PRESENT' ? activeDailyWage : (status === 'HALF_DAY' ? Math.round(activeDailyWage / 2) : 0)
       },
       create: {
         userId: Number(userId),
         date: d,
         status,
-        dailyWage: status === 'PRESENT' ? activeDailyWage : 0,
+        dailyWage: status === 'PRESENT' ? activeDailyWage : (status === 'HALF_DAY' ? Math.round(activeDailyWage / 2) : 0),
         month: m,
         year: y
       }

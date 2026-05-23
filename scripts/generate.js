@@ -2,7 +2,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const prismaPath = path.join(root, 'server', 'node_modules', '.bin', 'prisma');
+const prismaPath = path.join(root, 'node_modules', '.bin', 'prisma');
 const schemaPath = path.join(root, 'prisma', 'schema.prisma');
 
 try {

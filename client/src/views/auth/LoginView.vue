@@ -2,6 +2,7 @@
   <div class="login-wrap">
     <div class="login-card card shadow-lg border-0">
       <div class="card-header text-center py-4 border-0">
+        <img src="/favicon.png" alt="BDP Logo" class="mb-2" style="height: 48px; width: 48px; object-fit: contain;" />
         <h4 class="fw-bold mb-1 page-title">Best Deal Paisa</h4>
         <small class="text-muted">Employee Management Portal</small>
       </div>
