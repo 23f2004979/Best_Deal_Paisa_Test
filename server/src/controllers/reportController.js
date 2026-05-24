@@ -57,6 +57,12 @@ exports.updateReport = async (req, res) => {
       newLevel = 1;
     }
 
+    if (file.status === 'APPROVED' && newStatus !== 'APPROVED') {
+      await prisma.loanDisbursed.deleteMany({
+        where: { fileId: Number(id) }
+      });
+    }
+
     const updatedFile = await prisma.file.update({
       where: { id: Number(id) },
       data: {
@@ -295,6 +301,50 @@ exports.approveReport = async (req, res) => {
       data: { status: newStatus, approvalLevel: newLevel }
     });
 
+    // Synchronize with LoanDisbursed table
+    if (newStatus === 'APPROVED') {
+      let amount = 0;
+      if (file.customerDetails) {
+        try {
+          const details = typeof file.customerDetails === 'string'
+            ? JSON.parse(file.customerDetails)
+            : file.customerDetails;
+          amount = Number(details.loanAmount) || 0;
+        } catch (e) {
+          console.error('Failed to parse customerDetails for loan amount:', e);
+        }
+      }
+
+      const now = new Date();
+      await prisma.loanDisbursed.upsert({
+        where: { fileId: updatedFile.id },
+        update: {
+          amount: amount,
+          status: 'APPROVED',
+          approvedById: req.user.id,
+          teleCallerId: file.createdById,
+          disbursedDate: now,
+          month: now.getMonth() + 1,
+          year: now.getFullYear()
+        },
+        create: {
+          fileId: updatedFile.id,
+          amount: amount,
+          status: 'APPROVED',
+          teleCallerId: file.createdById,
+          approvedById: req.user.id,
+          disbursedDate: now,
+          month: now.getMonth() + 1,
+          year: now.getFullYear()
+        }
+      });
+    } else {
+      // If status is not APPROVED (e.g. REJECTED or CHANGES_REQUESTED), delete the disbursement entry
+      await prisma.loanDisbursed.deleteMany({
+        where: { fileId: updatedFile.id }
+      });
+    }
+
     // Log the approval
     await prisma.approvalLog.create({
       data: {
@@ -397,11 +447,21 @@ exports.bulkShareReports = async (req, res) => {
       }
     }
 
-    // Create the shares
-    await prisma.fileShare.createMany({
-      data: shareData,
-      skipDuplicates: true
-    });
+    // Create the shares via safe transaction + upserts (SQLite support)
+    await prisma.$transaction(
+      shareData.map(data =>
+        prisma.fileShare.upsert({
+          where: {
+            fileId_sharedWithId: {
+              fileId: data.fileId,
+              sharedWithId: data.sharedWithId
+            }
+          },
+          update: {},
+          create: data
+        })
+      )
+    );
 
     // Create notifications for the recipients
     for (const sharedWithId of targetUserIds) {

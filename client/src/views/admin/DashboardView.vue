@@ -282,7 +282,7 @@
                 <div class="col-md-6 border-end">
                   <div class="py-2">
                     <i class="bi bi-lightning-charge-fill text-warning fs-3 mb-2 d-inline-block"></i>
-                    <h3 class="fw-bold text-dark mb-1">{{ advAnalytics.avgTLHours }} hrs</h3>
+                    <h3 class="fw-bold text-dark mb-1">{{ advAnalytics.avgTLHoursStr || (advAnalytics.avgTLHours + ' hrs') }}</h3>
                     <div class="text-muted" style="font-size: 0.8rem;">Average Team Lead Approval Speed</div>
                     <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">Time from submission to Level 1 decision</small>
                   </div>
@@ -290,11 +290,58 @@
                 <div class="col-md-6">
                   <div class="py-2">
                     <i class="bi bi-check-circle-fill text-success fs-3 mb-2 d-inline-block"></i>
-                    <h3 class="fw-bold text-dark mb-1">{{ advAnalytics.avgMgrHours }} hrs</h3>
+                    <h3 class="fw-bold text-dark mb-1">{{ advAnalytics.avgMgrHoursStr || (advAnalytics.avgMgrHours + ' hrs') }}</h3>
                     <div class="text-muted" style="font-size: 0.8rem;">Average Manager Approval Speed</div>
                     <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">Time from submission to final decision</small>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Incoming Support Tickets Section -->
+      <div class="row g-3 mt-2 mb-4">
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <h6 class="fw-600 mb-0"><i class="bi bi-envelope-exclamation text-warning me-2"></i>Incoming Support Tickets</h6>
+              <router-link to="/issues" class="btn btn-xs btn-primary py-1 px-2" style="font-size: 0.75rem;">Manage Tickets</router-link>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="px-3">Reporter</th>
+                      <th>Title</th>
+                      <th>Category</th>
+                      <th class="px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!incomingIssues.length">
+                      <td colspan="4" class="text-center py-4 text-muted">No incoming tickets pending.</td>
+                    </tr>
+                    <tr v-for="issue in incomingIssues.slice(0, 5)" :key="issue.id">
+                      <td class="px-3">
+                        <span class="fw-600 text-dark">{{ issue.reporter?.name }}</span>
+                        <small class="text-muted d-block" style="font-size: 0.7rem;">{{ issue.reporter?.empId }}</small>
+                      </td>
+                      <td>
+                        <span class="fw-600 text-dark">{{ issue.title }}</span>
+                        <small class="text-muted d-block text-truncate" style="max-width: 300px;">{{ issue.description }}</small>
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ issue.category }}</span>
+                      </td>
+                      <td class="px-3">
+                        <span class="badge" :class="issueStatusBadgeClass(issue.status)">{{ formatIssueStatus(issue.status) }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -321,6 +368,7 @@ const analyticsYear = ref(new Date().getFullYear())
 const analytics = ref({ attendanceData: [], recentActivity: [], activeFiles: [] })
 
 const allReports = ref([])
+const incomingIssues = ref([])
 
 const advLoading = ref(true)
 const advAnalytics = ref({ leaderboard: [], trends: [], avgTLHours: 0, avgMgrHours: 0 })
@@ -401,6 +449,18 @@ function onPeriodChange() {
   loadAdvancedAnalytics();
 }
 
+const issueStatusBadgeClass = (status) => {
+  if (status === 'PENDING') return 'bg-warning-subtle text-warning-emphasis'
+  if (status === 'IN_PROGRESS') return 'bg-info-subtle text-info-emphasis'
+  return 'bg-success-subtle text-success-emphasis'
+}
+
+const formatIssueStatus = (status) => {
+  if (status === 'PENDING') return 'Pending'
+  if (status === 'IN_PROGRESS') return 'In Progress'
+  return 'Resolved'
+}
+
 onMounted(async () => {
   try {
     const { data } = await api.get('/admin/dashboard')
@@ -410,5 +470,12 @@ onMounted(async () => {
   loadAnalytics()
   loadAdvancedAnalytics()
   loadAllReports()
+
+  try {
+    const res = await api.get('/issues/incoming')
+    incomingIssues.value = res.data
+  } catch (err) {
+    console.error('Failed to load incoming issues on Admin dashboard:', err)
+  }
 })
 </script>

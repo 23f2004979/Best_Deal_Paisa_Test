@@ -77,19 +77,50 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="emp-main">
-      <slot />
+    <main class="emp-main position-relative" style="position: relative; overflow-x: hidden;">
+      <!-- Background Watermark -->
+      <div v-if="auth.user" class="watermark-container" :style="watermarkStyle"></div>
+
+      <div class="position-relative w-100" style="z-index: 1;">
+        <slot />
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import SidebarLink      from '../components/sidebar/SidebarLink.vue'
 
 const auth   = useAuthStore()
+
+const watermarkStyle = computed(() => {
+  if (!auth.user) return {};
+  const text = `${auth.user.name} — ${auth.user.empId}`.toUpperCase();
+  
+  // Staggered dense layout SVG tile (260x120)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="120">
+    <text x="130" y="60" 
+          fill="#0f172a" 
+          font-family="sans-serif" 
+          font-weight="900" 
+          font-size="14" 
+          opacity="0.08" 
+          text-anchor="middle" 
+          letter-spacing="1.5"
+          transform="rotate(-20 130 60)">
+      ${text}
+    </text>
+  </svg>`;
+  
+  const base64 = btoa(unescape(encodeURIComponent(svg)));
+  return {
+    backgroundImage: `url("data:image/svg+xml;base64,${base64}")`,
+    backgroundRepeat: 'repeat'
+  };
+});
 const router = useRouter()
 const route  = useRoute()
 
@@ -130,3 +161,17 @@ function handleLogout() {
   router.push('/login')
 }
 </script>
+
+<style scoped>
+.watermark-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+</style>

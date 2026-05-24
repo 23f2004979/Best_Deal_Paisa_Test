@@ -78,6 +78,7 @@ model File {
   history         AppHistory[]
   approvalLogs    ApprovalLog[]
   shares          FileShare[]
+  loanDisbursed   LoanDisbursed?
 }
 
 model ApprovalLog {
@@ -102,6 +103,8 @@ model LoanDisbursed {
   teleCaller    User       @relation("TCLoan", fields: [teleCallerId], references: [id])
   approvedById  Int?
   approvedBy    User?      @relation("LoanApprover", fields: [approvedById], references: [id])
+  fileId        Int?       @unique
+  file          File?      @relation(fields: [fileId], references: [id], onDelete: Cascade)
   createdAt     DateTime   @default(now())
 }
 

@@ -142,7 +142,7 @@
     </div>
 
     <!-- Create/Edit Modal -->
-    <div v-if="showModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);">
+    <div v-if="showModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 1300;">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
@@ -226,8 +226,8 @@
     </div>
 
     <!-- View Details Modal -->
-    <div v-if="showViewModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);">
-      <div class="modal-dialog modal-lg">
+    <div v-if="showViewModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 1300;">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title fw-700 text-primary">
@@ -243,7 +243,7 @@
               <button type="button" class="btn-close" @click="closeViewModal"></button>
             </div>
           </div>
-          <div class="modal-body" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+          <div class="modal-body">
             <!-- Overview & Status -->
             <div class="row mb-4">
               <div class="col-md-8">
@@ -387,7 +387,7 @@
     </div>
 
     <!-- Share Modal -->
-    <div v-if="showShareModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 1060;">
+    <div v-if="showShareModal" class="modal d-block" tabindex="-1" style="background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 1400;">
       <div class="modal-dialog modal-md modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -443,13 +443,34 @@ const route = useRoute();
 
 const getFileUrl = (url) => {
   if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiBaseURL = api.defaults.baseURL || '';
-  const serverURL = apiBaseURL.replace(/\/api$/, '');
-  if (!serverURL || serverURL.startsWith('/')) {
-    return `${window.location.origin}${url}`;
+  
+  let resolvedUrl = url;
+  
+  // If it's a relative URL, construct it using the API base URL or proxy
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    const apiBaseURL = api.defaults.baseURL || '';
+    const serverURL = apiBaseURL.replace(/\/api$/, '');
+    
+    if (!serverURL || serverURL.startsWith('/')) {
+      // Relative URL, use window.location.origin
+      resolvedUrl = `${window.location.origin}${url}`;
+    } else {
+      resolvedUrl = `${serverURL}${url}`;
+    }
   }
-  return `${serverURL}${url}`;
+  
+  // Now resolvedUrl is an absolute URL (e.g. http://localhost:3000/uploads/file.pdf)
+  // If it points to localhost/127.0.0.1, rewrite it to window.location.hostname
+  try {
+    const parsed = new URL(resolvedUrl);
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+      parsed.hostname = window.location.hostname;
+    }
+    return parsed.toString();
+  } catch (e) {
+    // Fallback if URL parsing fails
+    return resolvedUrl.replace('localhost', window.location.hostname).replace('127.0.0.1', window.location.hostname);
+  }
 };
 
 const reports = ref([]);

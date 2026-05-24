@@ -8,7 +8,7 @@
           <StatCard icon="headset" label="My Tele Callers" :value="stats.teleCallers" color="#3b82f6" />
         </div>
         <div class="col-6 col-lg-6">
-          <StatCard icon="cash-stack" label="Pending Loans" :value="stats.pendingLoans" color="#ef4444" />
+          <StatCard icon="folder-check" label="Approved Loans" :value="stats.approvedLoans" color="#10b981" />
         </div>
       </div>
 
@@ -70,16 +70,9 @@
       <!-- Telecaller Report Viewer -->
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h6 class="fw-600 mb-0"><i class="bi bi-eye text-success me-2"></i>Telecaller Report Viewer</h6>
+          <h6 class="fw-600 mb-0"><i class="bi bi-eye text-success me-2"></i>Approved Telecaller Loans</h6>
           <div class="d-flex gap-2">
             <input v-model="searchQuery" type="text" class="form-control form-control-sm" placeholder="Search by customer/report..." style="width: 200px;" />
-            <select v-model="filterStatus" class="form-select form-select-sm" style="width: auto;">
-              <option value="">All Statuses</option>
-              <option value="PENDING_APPROVAL">Pending Approval</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-              <option value="CHANGES_REQUESTED">Changes Requested</option>
-            </select>
           </div>
         </div>
         <div class="card-body p-0">
@@ -114,6 +107,90 @@
           </div>
         </div>
       </div>
+
+      <!-- Support Tickets & Subordinate Issues Section -->
+      <div class="row g-4 mt-2 mb-4">
+        <!-- Subordinate Support Tickets (Incoming) -->
+        <div class="col-12 col-xl-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <h6 class="fw-600 mb-0"><i class="bi bi-envelope-exclamation text-warning me-2"></i>Subordinate Support Tickets</h6>
+              <router-link to="/issues" class="btn btn-xs btn-primary py-1 px-2" style="font-size: 0.75rem;">Manage Tickets</router-link>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="px-3">Reporter</th>
+                      <th>Title</th>
+                      <th class="px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!incomingIssues.length">
+                      <td colspan="3" class="text-center py-4 text-muted">No subordinate issues pending.</td>
+                    </tr>
+                    <tr v-for="issue in incomingIssues.slice(0, 5)" :key="issue.id">
+                      <td class="px-3">
+                        <span class="fw-600 text-dark">{{ issue.reporter?.name }}</span>
+                        <small class="text-muted d-block" style="font-size: 0.7rem;">{{ issue.reporter?.empId }}</small>
+                      </td>
+                      <td>
+                        <span class="fw-600 text-dark">{{ issue.title }}</span>
+                        <small class="text-muted d-block text-truncate" style="max-width: 200px;">{{ issue.description }}</small>
+                      </td>
+                      <td class="px-3">
+                        <span class="badge" :class="issueStatusBadgeClass(issue.status)">{{ formatIssueStatus(issue.status) }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Submitted Tickets -->
+        <div class="col-12 col-xl-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <h6 class="fw-600 mb-0"><i class="bi bi-chat-left-text text-primary me-2"></i>My Submitted Tickets</h6>
+              <router-link to="/issues" class="btn btn-xs btn-primary py-1 px-2" style="font-size: 0.75rem;">Raise Ticket</router-link>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="px-3">Title</th>
+                      <th>Category</th>
+                      <th class="px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!myIssues.length">
+                      <td colspan="3" class="text-center py-4 text-muted">No tickets raised.</td>
+                    </tr>
+                    <tr v-for="issue in myIssues.slice(0, 5)" :key="issue.id">
+                      <td class="px-3">
+                        <span class="fw-600 text-dark">{{ issue.title }}</span>
+                        <small class="text-muted d-block text-truncate" style="max-width: 200px;">{{ issue.description }}</small>
+                      </td>
+                      <td>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ issue.category }}</span>
+                      </td>
+                      <td class="px-3">
+                        <span class="badge" :class="issueStatusBadgeClass(issue.status)">{{ formatIssueStatus(issue.status) }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -126,11 +203,12 @@ import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import SubordinateAttendance from '../../components/attendance/SubordinateAttendance.vue'
 
 const loading = ref(true)
-const stats = ref({ teleCallers: 0, pendingLoans: 0 })
+const stats = ref({ teleCallers: 0, approvedLoans: 0 })
 
 const reports = ref([])
 const searchQuery = ref('')
-const filterStatus = ref('')
+const incomingIssues = ref([])
+const myIssues = ref([])
 
 const getCustomerName = (report) => {
   try {
@@ -160,7 +238,8 @@ const statusBadge = (status) => {
 
 const filteredReports = computed(() => {
   return reports.value.filter(r => {
-    if (filterStatus.value && r.status !== filterStatus.value) return false
+    // Only show approved reports
+    if (r.status !== 'APPROVED') return false
 
     if (searchQuery.value) {
       const q = searchQuery.value.toLowerCase()
@@ -181,7 +260,7 @@ const filteredReports = computed(() => {
 
 const todaySubmissions = computed(() => {
   const todayStr = new Date().toDateString()
-  return reports.value.filter(r => new Date(r.createdAt).toDateString() === todayStr).length
+  return reports.value.filter(r => new Date(r.createdAt).toDateString() === todayStr && r.status === 'APPROVED').length
 })
 
 const todayApproved = computed(() => {
@@ -192,7 +271,7 @@ const todayApproved = computed(() => {
 const todayLoanAmount = computed(() => {
   const todayStr = new Date().toDateString()
   return reports.value
-    .filter(r => new Date(r.createdAt).toDateString() === todayStr)
+    .filter(r => new Date(r.createdAt).toDateString() === todayStr && r.status === 'APPROVED')
     .reduce((sum, r) => sum + getLoanAmount(r), 0)
 })
 
@@ -201,7 +280,7 @@ const telecallerProductivity = computed(() => {
   const callerMap = {}
   
   reports.value
-    .filter(r => new Date(r.createdAt).toDateString() === todayStr)
+    .filter(r => new Date(r.createdAt).toDateString() === todayStr && r.status === 'APPROVED')
     .forEach(r => {
       const creator = r.createdBy
       if (!creator || creator.role !== 'TELE_CALLER') return
@@ -225,11 +304,23 @@ const telecallerProductivity = computed(() => {
 
 const loadReports = async () => {
   try {
-    const res = await api.get('/shared/reports')
+    const res = await api.get('/shared/reports?status=APPROVED')
     reports.value = res.data
   } catch (err) {
     console.error('Failed to load reports:', err)
   }
+}
+
+const issueStatusBadgeClass = (status) => {
+  if (status === 'PENDING') return 'bg-warning-subtle text-warning-emphasis'
+  if (status === 'IN_PROGRESS') return 'bg-info-subtle text-info-emphasis'
+  return 'bg-success-subtle text-success-emphasis'
+}
+
+const formatIssueStatus = (status) => {
+  if (status === 'PENDING') return 'Pending'
+  if (status === 'IN_PROGRESS') return 'In Progress'
+  return 'Resolved'
 }
 
 onMounted(async () => {
@@ -239,5 +330,16 @@ onMounted(async () => {
   } catch (e) { console.error(e) }
   finally { loading.value = false }
   loadReports()
+
+  try {
+    const [incRes, myRes] = await Promise.all([
+      api.get('/issues/incoming'),
+      api.get('/issues/my')
+    ])
+    incomingIssues.value = incRes.data
+    myIssues.value = myRes.data
+  } catch (err) {
+    console.error('Failed to load issues on TL dashboard:', err)
+  }
 })
 </script>

@@ -9,10 +9,10 @@ exports.getDashboard = async (req, res) => {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-    const pendingLoans = await prisma.loanDisbursed.count({
-      where: { teleCaller: { teamLeadId: req.user.id }, status: 'PENDING', month, year }
+    const approvedLoans = await prisma.loanDisbursed.count({
+      where: { teleCaller: { teamLeadId: req.user.id }, status: 'APPROVED', month, year }
     });
-    res.json({ teleCallers, pendingLoans, month, year });
+    res.json({ teleCallers, approvedLoans, month, year });
   } catch (err) {
     console.error('TeamLead dashboard error:', err);
     res.status(500).json({ message: 'Server error.' });
@@ -79,7 +79,7 @@ exports.getSubordinatesAttendance = async (req, res) => {
     
     const users = await prisma.user.findMany({
       where: { teamLeadId: req.user.id, role: 'TELE_CALLER', status: 'ACTIVE' },
-      select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
+      select: { id: true, empId: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
     const now = new Date();

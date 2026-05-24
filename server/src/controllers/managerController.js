@@ -66,10 +66,58 @@ exports.getFiles = async (req, res) => {
 // PATCH /api/manager/files/:id/status
 exports.updateFileStatus = async (req, res) => {
   try {
+    const updatedStatus = req.body.status;
+    const updateData = { status: updatedStatus };
+    if (updatedStatus === 'APPROVED') {
+      updateData.approvalLevel = 4;
+    }
+
     const file = await prisma.file.update({
       where: { id: Number(req.params.id) },
-      data:  { status: req.body.status }
+      data:  updateData
     });
+
+    if (file.status === 'APPROVED') {
+      let amount = 0;
+      if (file.customerDetails) {
+        try {
+          const details = typeof file.customerDetails === 'string'
+            ? JSON.parse(file.customerDetails)
+            : file.customerDetails;
+          amount = Number(details.loanAmount) || 0;
+        } catch (e) {
+          console.error('Manager updateFileStatus parsing error:', e);
+        }
+      }
+      const now = new Date();
+      await prisma.loanDisbursed.upsert({
+        where: { fileId: file.id },
+        update: {
+          amount: amount,
+          status: 'APPROVED',
+          approvedById: req.user.id,
+          teleCallerId: file.createdById,
+          disbursedDate: now,
+          month: now.getMonth() + 1,
+          year: now.getFullYear()
+        },
+        create: {
+          fileId: file.id,
+          amount: amount,
+          status: 'APPROVED',
+          teleCallerId: file.createdById,
+          approvedById: req.user.id,
+          disbursedDate: now,
+          month: now.getMonth() + 1,
+          year: now.getFullYear()
+        }
+      });
+    } else {
+      await prisma.loanDisbursed.deleteMany({
+        where: { fileId: file.id }
+      });
+    }
+
     res.json({ message: 'File status updated.', file });
   } catch (err) {
     console.error('Manager updateFileStatus error:', err);
@@ -158,7 +206,7 @@ exports.getSubordinatesAttendance = async (req, res) => {
           { teamLeadId: { in: tlIds }, role: 'TELE_CALLER', status: 'ACTIVE' }
         ]
       },
-      select: { id: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
+      select: { id: true, empId: true, name: true, role: true, baseSalary: true, dailyWage: true, attendance: { where: { month, year } } }
     });
     
     const now = new Date();

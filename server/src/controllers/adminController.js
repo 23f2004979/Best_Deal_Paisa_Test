@@ -10,6 +10,24 @@ function validatePassword(password) {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`\-]).{8,}$/.test(password);
 }
 
+function formatDuration(hours) {
+  if (hours <= 0) return '0 secs';
+  const totalSeconds = Math.round(hours * 3600);
+  if (totalSeconds < 60) {
+    return `${totalSeconds} sec${totalSeconds !== 1 ? 's' : ''}`;
+  }
+  const totalMinutes = Math.round(totalSeconds / 60);
+  if (totalMinutes < 60) {
+    return `${totalMinutes} min${totalMinutes !== 1 ? 's' : ''}`;
+  }
+  const displayHours = Math.floor(totalMinutes / 60);
+  const displayMinutes = totalMinutes % 60;
+  if (displayMinutes === 0) {
+    return `${displayHours} hr${displayHours !== 1 ? 's' : ''}`;
+  }
+  return `${displayHours} hr${displayHours !== 1 ? 's' : ''} ${displayMinutes} min${displayMinutes !== 1 ? 's' : ''}`;
+}
+
 // GET /api/admin/dashboard
 exports.getDashboard = async (req, res) => {
   try {
@@ -190,10 +208,58 @@ exports.getFiles = async (req, res) => {
 // PATCH /api/admin/files/:id/status — body: { status: 'APPROVED' | 'REJECTED' }
 exports.updateFileStatus = async (req, res) => {
   try {
+    const updatedStatus = req.body.status;
+    const updateData = { status: updatedStatus };
+    if (updatedStatus === 'APPROVED') {
+      updateData.approvalLevel = 4;
+    }
+
     const file = await prisma.file.update({
       where: { id: Number(req.params.id) },
-      data:  { status: req.body.status }
+      data:  updateData
     });
+
+    if (file.status === 'APPROVED') {
+      let amount = 0;
+      if (file.customerDetails) {
+        try {
+          const details = typeof file.customerDetails === 'string'
+            ? JSON.parse(file.customerDetails)
+            : file.customerDetails;
+          amount = Number(details.loanAmount) || 0;
+        } catch (e) {
+          console.error('Admin updateFileStatus parsing error:', e);
+        }
+      }
+      const now = new Date();
+      await prisma.loanDisbursed.upsert({
+        where: { fileId: file.id },
+        update: {
+          amount: amount,
+          status: 'APPROVED',
+          approvedById: req.user.id,
+          teleCallerId: file.createdById,
+          disbursedDate: now,
+          month: now.getMonth() + 1,
+          year: now.getFullYear()
+        },
+        create: {
+          fileId: file.id,
+          amount: amount,
+          status: 'APPROVED',
+          teleCallerId: file.createdById,
+          approvedById: req.user.id,
+          disbursedDate: now,
+          month: now.getMonth() + 1,
+          year: now.getFullYear()
+        }
+      });
+    } else {
+      await prisma.loanDisbursed.deleteMany({
+        where: { fileId: file.id }
+      });
+    }
+
     res.json({ message: 'File status updated.', file });
   } catch (err) {
     console.error('Admin updateFileStatus error:', err);
@@ -489,14 +555,22 @@ exports.getAdvancedAnalytics = async (req, res) => {
       }
     });
 
-    const avgTLHours = tlCount > 0 ? Math.round((tlSum / tlCount) * 10) / 10 : 0;
-    const avgMgrHours = mgrCount > 0 ? Math.round((mgrSum / mgrCount) * 10) / 10 : 0;
+    const avgTLHoursRaw = tlCount > 0 ? (tlSum / tlCount) : 0;
+    const avgMgrHoursRaw = mgrCount > 0 ? (mgrSum / mgrCount) : 0;
+
+    const avgTLHours = Math.round(avgTLHoursRaw * 10) / 10;
+    const avgMgrHours = Math.round(avgMgrHoursRaw * 10) / 10;
+
+    const avgTLHoursStr = formatDuration(avgTLHoursRaw);
+    const avgMgrHoursStr = formatDuration(avgMgrHoursRaw);
 
     res.json({
       leaderboard: leaderboardDetails,
       trends,
       avgTLHours,
       avgMgrHours,
+      avgTLHoursStr,
+      avgMgrHoursStr,
       month,
       year
     });

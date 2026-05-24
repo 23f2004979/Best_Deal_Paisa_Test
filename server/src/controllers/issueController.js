@@ -82,7 +82,26 @@ exports.getIncomingIssues = async (req, res) => {
     const userId = req.user.id;
     const { status } = req.query;
 
-    const whereClause = { assignedSeniorId: userId };
+    let whereClause = {};
+
+    if (req.user.role === 'ADMIN' || req.user.role === 'MASTER_ADMIN') {
+      // Admins see all issues
+      whereClause = {};
+    } else if (req.user.role === 'MANAGER') {
+      // Manager sees issues assigned to themselves OR their Team Leads
+      const teamLeads = await prisma.user.findMany({
+        where: { managerId: userId, role: 'TEAM_LEAD' },
+        select: { id: true }
+      });
+      const tlIds = teamLeads.map(tl => tl.id);
+      whereClause = {
+        assignedSeniorId: { in: [userId, ...tlIds] }
+      };
+    } else {
+      // Team Leads see issues assigned to themselves
+      whereClause = { assignedSeniorId: userId };
+    }
+
     if (status) {
       whereClause.status = status;
     }
@@ -136,8 +155,25 @@ exports.updateIssueStatus = async (req, res) => {
     }
 
     // Verify ownership/assignment
-    if (issue.assignedSeniorId !== userId) {
-      return res.status(403).json({ message: 'Access denied. You are not assigned to resolve this issue.' });
+    let canResolve = false;
+    if (req.user.role === 'ADMIN' || req.user.role === 'MASTER_ADMIN') {
+      canResolve = true;
+    } else if (req.user.role === 'MANAGER') {
+      // Manager can resolve if issue is assigned to them or their Team Leads
+      const teamLeads = await prisma.user.findMany({
+        where: { managerId: userId, role: 'TEAM_LEAD' },
+        select: { id: true }
+      });
+      const tlIds = teamLeads.map(tl => tl.id);
+      if (issue.assignedSeniorId === userId || tlIds.includes(issue.assignedSeniorId)) {
+        canResolve = true;
+      }
+    } else if (issue.assignedSeniorId === userId) {
+      canResolve = true;
+    }
+
+    if (!canResolve) {
+      return res.status(403).json({ message: 'Access denied. You are not authorized to resolve this issue.' });
     }
 
     const updateData = { status };
